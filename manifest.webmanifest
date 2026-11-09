@@ -1,0 +1,75 @@
+{
+  "name": "Kassensturz",
+  "short_name": "Kassensturz",
+  "description": "Haushaltsbuch mit Fixkosten, Einnahmen und Bon-Auswertung. Alle Daten bleiben auf dem Handy.",
+  "lang": "de",
+  "start_url": "./#monat",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1f6",
+  "theme_color": "#2a43b5",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "share_target": {
+    "action": "./share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "image",
+          "accept": [
+            "image/*"
+          ]
+        }
+      ]
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Bon fotografieren",
+      "short_name": "Bon-Foto",
+      "description": "Foto oder Screenshot eines Belegs erfassen",
+      "url": "./?action=photo#beleg",
+      "icons": [
+        {
+          "src": "icon-photo-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Beleg eintippen",
+      "short_name": "Beleg",
+      "description": "Bon-Text einfügen oder Beleg von Hand eintragen",
+      "url": "./?action=text#beleg",
+      "icons": [
+        {
+          "src": "icon-text-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
