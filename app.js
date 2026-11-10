@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.3.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.4.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -54,12 +54,16 @@ const MERCHANTS=[
   ['Deutsche Bahn',/\b(deutsche bahn|db fernverkehr|bahn\.de)\b/i,'mobil',1],
   ['McDonald\'s',/\bmc\s?donald/i,'essen',1],['Burger King',/\bburger king\b/i,'essen',1],
   ['Lieferando',/\blieferando\b/i,'essen',1],['Starbucks',/\bstarbucks\b/i,'essen',1],
+  ['Buchhandlung',/\b(thalia|hugendubel|osiander|buchhandlung|weltbild)\b/i,'freizeit',0,1],
+  ['Stadtwerke',/\b(stadtwerke|enbw|e\.on|vattenfall|eprimo|yello|stromio|energieversorg\w*|gasversorg\w*|wasserversorg\w*|energie\s?gmbh)/i,'wohnen',1,1,'utility'],
+  ['Arztpraxis',/(\bdr\.?\s*med\b|\bzahnarzt\w*|\barztpraxis|\bpraxis\s+(f(ü|ue)r|dr)|privat(ä|ae)rztlich\w*|\bgo(ä|ae)\b|\bgoz\b|physiotherap\w*|heilpraktik\w*)/i,'gesund',1,1,'medical'],
+  ['Handwerker',/\b(elektro\w*|sanit(ä|ae)r\w*|heizungsbau|malerbetrieb|malermeister|maler\s?gmbh|schreinerei|tischlerei|installateur\w*|dachdecker\w*|fliesenleger\w*|handwerk\w*|haustechnik|schl(ü|ue)sseldienst)/i,'wohnen',1,1,'craft'],
   ['Kino',/\b(cinemaxx|kinopolis|uci|cineplex|kino)\b/i,'freizeit',1,1],
   ['Tankstelle',/\b(aral|shell|esso|jet|totalenergies|avia|tankstelle)\b/i,'mobil',1,1],
   ['Apotheke',/\bapotheke\b/i,'gesund',1,1],
   ['Bäckerei',/\b(b(ä|ae)ckerei|backhaus|bäcker)\b/i,'essen',1,1],
   ['Restaurant',/\b(pizzeria|ristorante|restaurant|gasthaus|gastst(ä|ae)tte|imbiss|d(ö|oe)ner|bistro|trattoria|caf(é|e)(?![a-zäöüß])|sushi|burger|kebap|kebab)/i,'essen',1,1]
-].map(([name,re,cat,single,generic])=>({name,re,cat,single:!!single,generic:!!generic}));
+].map(([name,re,cat,single,generic,type])=>({name,re,cat,single:!!single,generic:!!generic,type:type||''}));
 
 /* Stichwörter: c = als Wortteil, w = als ganzes Wort */
 const KW={
@@ -142,7 +146,7 @@ const activeIn=(f,ym)=>f.interval===0?f.start===ym:((!f.start||f.start<=ym)&&(!f
 const shareOf=f=>f.interval===0?f.amount:f.amount/(f.interval||1);
 
 /* Steuer */
-const TAXKINDS={arbeitsmittel:'Arbeitsmittel',fachliteratur:'Fachliteratur',fortbildung:'Fortbildung',sonstiges:'Sonstige Werbungskosten'};
+const TAXKINDS={arbeitsmittel:'Arbeitsmittel',fachliteratur:'Fachliteratur',fortbildung:'Fortbildung',sonstiges:'Sonstige Werbungskosten',handwerker:'Handwerkerleistungen (Arbeitskosten)',krankheit:'Krankheitskosten'};
 const taxOpts=sel=>`<option value="">nicht absetzbar</option>`+Object.entries(TAXKINDS).map(([k,v])=>`<option value="${k}"${k===sel?' selected':''}>§ ${v}</option>`).join('');
 function taxYear(y){
   const ys=String(y),rows=[],by={};
@@ -206,9 +210,12 @@ function monthStats(ym,catF){
 function normKey(s){
   return String(s||'').toUpperCase().replace(/[^A-ZÄÖÜß ]+/g,' ').split(/\s+/).filter(w=>w.length>=2).join(' ').slice(0,48);
 }
+// Wortteile, die sonst falsche Treffer auslösen („Anfahrtspauschale“ ist kein Schal)
+const KW_NOT=/PAUSCHAL\w*|NOTIZBUCH\w*|BUCHUNG\w*|SCHALTER\w*|SCHALEN?\b|ABSCHLAG\w*|HOSENTR\w*/g;
 function keywordCat(key){
   // längster Treffer gewinnt: „ZAHNPASTA“ schlägt „PASTA“
-  const words=key.split(' ');let best=null,len=0;
+  key=key.replace(KW_NOT,' ');
+  const words=key.split(/\s+/);let best=null,len=0;
   for(const [c,{c:cont,w}] of Object.entries(KW)){
     if(!state.categories.some(x=>x.id===c)) continue;
     cont.forEach(k=>{if(k.length>len&&key.includes(k)){best=c;len=k.length}});
@@ -216,6 +223,7 @@ function keywordCat(key){
   }
   return best;
 }
+const merchantType=name=>{const b=MERCHANTS.find(m=>m.re.test(name||''));return b?b.type:''};
 function merchantInfo(name){
   const mk=normKey(name);
   const learned=mk&&state.rules.merchants[mk];
@@ -236,48 +244,94 @@ function classify(name,mi){
   return {cat:'',src:'',flag:true,suggest:mi.cat||null};
 }
 
-const SKIP=/(summe|gesamt|zu zahlen|\btotal\b|endbetrag|rechnungsbetrag|zahlbetrag|mwst|\bust\b|ust-|netto|brutto|steuer|gegeben|geg\.|r(ü|ue)ckgeld|zur(ü|ue)ck|\bbar\b|kartenzahlung|girocard|ec[- ]?karte|visa|mastercard|maestro|paypal|kreditkarte|bon-?nr|beleg|kasse\b|terminal|trace|tse|uhrzeit|datum|steuer-?nr|ust-?id|filiale|tel\.|telefon|www\.|\.de\b|vielen dank|kundenbeleg|kundenkarte|payback|punkte|trinkgeld|subtotal|tax\b|vat\b|shipping|versandkosten)/i;
-const TOTAL=/(summe|gesamtbetrag|gesamtsumme|gesamtpreis|gesamt\b|zu zahlen|endbetrag|rechnungsbetrag|zahlbetrag|bestellsumme|order total|grand total|^total\b|\btotal:)/i;
-const NOTNAME=/^(verkauft|versand|geliefert|zustell|bestell|deine bestellung|ihre bestellung|menge|anzahl|lieferung|lieferdatum|r(ü|ue)ckgabe|artikel-?nr|art\.?-?nr|artikelnummer|preis|eur$|euro$|stk|gr(ö|oe)(ß|ss)e|farbe|variante|size|colou?r|qty|quantity|sold by|ships|delivered|arriving|order|einzelpreis)/i;
+const SKIP=/(summe|gesamt|zu zahlen|\btotal\b|endbetrag|rechnungsbetrag|zahlbetrag|mwst|\bust\b|ust-|netto|brutto|steuer|gegeben|geg\.|r(ü|ue)ckgeld|zur(ü|ue)ck|\bbar\b|kartenzahlung|girocard|ec[- ]?karte|visa|mastercard|maestro|paypal|kreditkarte|bon-?nr|beleg|kasse\b|terminal|trace|tse|uhrzeit|datum|steuer-?nr|ust-?id|filiale|tel\.|telefon|fax\b|www\.|\.de\b|vielen dank|kundenbeleg|kundenkarte|payback|punkte|trinkgeld|subtotal|tax\b|vat\b|shipping|versandkosten|^betrag\b|umsatz|autorisier|quittung|kontaktlos|approved|anwendung|zahlbar|f(ä|ae)llig|\biban\b|\bbic\b|kundennummer|kunden-?nr|rechnungsnummer|rechnungs-?nr|bestellnummer|auftragsnummer|abrechnungszeitraum|zzgl|zuz(ü|ue)glich|inkl\.?\s*mwst|enthaltene|bevorratung|zahlungsziel|(ü|ue)berweis|abgebucht|lastschrift|bankverbindung|skonto|entspricht|unktestand|gesammelt|einl(ö|oe)sbar)/i;
+const TOTAL=/(summe|gesamtbetrag|gesamtsumme|gesamtpreis|gesamt\b|zu zahlen|endbetrag|rechnungsbetrag|zahlbetrag|bestellsumme|order total|grand total|^total\b|\btotal:|[a-zäöü]{1,4}(amt|ant|arnt)betrag)/i;
+const PAYLINE=/(visa|girocard|ec[- ]?karte|mastercard|maestro|kartenzahlung|kreditkarte|paypal|^betrag\b|brutto)/i;
+const NOTNAME=/^(verkauft|versand|geliefert|zustell|bestell|deine bestellung|ihre bestellung|menge|anzahl|lieferung|lieferdatum|r(ü|ue)ckgabe|artikel-?nr|art\.?-?nr|artikelnummer|preis|eur$|euro$|stk|gr(ö|oe)(ß|ss)e|farbe|variante|size|colou?r|qty|quantity|sold by|ships|delivered|arriving|order|einzelpreis|pos\.?\s|position\s|bezeichnung)/i;
 const QTY=/^\s*\d+([.,]\d+)?\s*(stk\.?|st\.?|kg|g)?\s*[x×*]\s*\d/i;
 const DISC=/(rabatt|preisvorteil|coupon|gutschein|nachlass|preisreduz|sofortrabatt|discount)/i;
+const DATE_RE=/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/g;
+const DGOOD=/(rechnungsdatum|rechnung vom|belegdatum|kaufdatum|bestelldatum|datum|\bvom\b)/i;
+const DBAD=/(liefer|leistung|zahlbar|f(ä|ae)llig|\bbis\b|abbuch|abgebucht|zeitraum|g(ü|ue)ltig|mhd|ablauf|geburt|startzeit|beendigung|signatur)/i;
+const DUE=/(zahlbar|f(ä|ae)llig|zahlungsziel|(ü|ue)berweis\w*|zahlung\s+bis|bezahlen\s+bis|begleichen)/i;
 
 function findPrice(line){
-  let m=line.match(/(?:EUR|€)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:,\d{3})*\.\d{2}|-?\d+[.,]\d{2})\s*(?:[A-D]|[0-9])?\s*$/i);
+  let m=line.match(/(?:EUR|€)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:,\d{3})*\.\d{2}|-?\d+[.,]\d{2})\s*[#*]{0,2}\s*(?:[A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
   if(m) return {amt:toNum(m[1]),rest:line.slice(0,m.index)};
-  m=line.match(/(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2})(-?)\s*(?:€|EUR)?\s*(?:[A-D](?:\s*\*)?|\*|[0-9])?\s*$/i);
+  // Preis am Zeilenende, danach evtl. Währung und Steuerkennzeichen wie „B“, „1“, „#A*“ oder OCR-Reste wie „EURSA“
+  m=line.match(/(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2})(-?)\s*(?:€|EURO|EUR[A-Za-z]{0,3})?\s*[#*]{0,2}\s*(?:[A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
   if(m){let a=toNum(m[1]);if(m[2]==='-')a=-Math.abs(a);return {amt:a,rest:line.slice(0,m.index)}}
   return null;
 }
 const letters=s=>(String(s).match(/[A-Za-zÄÖÜäöüß]/g)||[]).length;
 function cleanName(s){
-  return s.replace(/\d+[.,]\d{2}\s*(EUR|€)/gi,'').replace(/^\s*\d{1,2}\s*[x×]?\s+(?=\D)/,'').replace(/[*#|]+/g,' ')
-    .replace(/\s{2,}/g,' ').replace(/[\s:,-]+$/,'').trim().slice(0,80);
+  let n=s.replace(/\s*[x×]?\s*\d+[.,]\d+\s*(€|eur)\s*\/\s*[a-zA-Z²]+/gi,' ')   // Stückpreise wie „x 0,3290 €/kWh“
+    .replace(/\d+[.,]\d{2}\s*(EUR|€)/gi,'')
+    .replace(/^\s*\*?\s*\d{4,}\s+/,'')                      // Artikelnummern am Anfang
+    .replace(/^\s*\d{1,2}\s*[x×]?\s+(?=\D)/,'')              // Menge oder Positionsnummer am Anfang
+    .replace(/[*#|]+/g,' ').replace(/\s{2,}/g,' ').trim();
+  for(let i=0;i<3;i++){
+    n=n.replace(/\s+[x×]$/,'')
+      .replace(/\s+\d+([.,]\d+)?\s+(stk\.?|st\.?|std\.?|stunden|stück|kwh|tage?|m²|qm|lfm)\.?$/i,'')
+      .replace(/\s+\d{1,3}$/,'').replace(/[\s:,-]+$/,'');
+  }
+  return n.trim().slice(0,80);
+}
+function cleanMerchant(l){
+  return l.split(/\s+[·•|]\s+|\s{3,}|,\s+|\s+-\s+\d/)[0].replace(/[^\p{L}\p{N}&'. -]/gu,'').replace(/\s{2,}/g,' ').trim().slice(0,40);
+}
+function pickDate(lines){
+  let best=null;
+  lines.forEach((l,i)=>{for(const m of l.matchAll(DATE_RE)){
+    const y=m[3].length===2?'20'+m[3]:m[3],mo=+m[2],da=+m[1];
+    if(mo<1||mo>12||da<1||da>31||+y<2000||+y>2100)continue;
+    const iso=y+'-'+pad(mo)+'-'+pad(da),sc=(DGOOD.test(l)?2:0)-(DBAD.test(l)?3:0);
+    if(!best||sc>best.sc)best={iso,sc,i};
+  }});
+  return best;
+}
+function findDue(lines,dateIso){
+  for(const l of lines){
+    if(!DUE.test(l)||/abgebucht|abbuchung|lastschrift|bereits bezahlt|dankend erhalten/i.test(l))continue;
+    const m=[...l.matchAll(DATE_RE)][0];
+    if(m){const y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+pad(+m[2])+'-'+pad(+m[1])}
+    const n=l.match(/(\d{1,3})\s*tag/i);
+    if(n&&dateIso)return addDays(dateIso,+n[1]);
+  }
+  return '';
 }
 function parseReceipt(text){
-  const lines=text.split(/\r?\n/).map(l=>l.replace(/\t/g,' ').trim()).filter(Boolean);
-  let merchant='',date='',total=null,dateFound=false;
+  // Störzeichen der Texterkennung am Zeilenanfang entfernen („= Betrag“, „- Visa“)
+  const lines=text.split(/\r?\n/).map(l=>l.replace(/\t/g,' ').replace(/^[^\p{L}\p{N}*€-]+/u,'').replace(/^[-–]\s+(?=\p{L})/u,'').trim()).filter(Boolean);
+  let merchant='',total=null,netAmt=null,vatAmt=null;
   const head=lines.slice(0,8).join('\n');
-  const b=MERCHANTS.find(m=>m.re.test(head))||MERCHANTS.find(m=>m.re.test(text));
-  if(b&&b.generic){const l=lines.find(x=>b.re.test(x)&&!findPrice(x));merchant=l?l.replace(/[^\p{L}\p{N}&' .-]/gu,'').trim().slice(0,40):b.name}
+  // Rechnungs- und Ladentypen nur im Kopf suchen, bekannte Händler auch im ganzen Text
+  const b=MERCHANTS.find(m=>m.re.test(head))||MERCHANTS.find(m=>!m.generic&&m.re.test(text));
+  if(b&&b.name==='Tankstelle'){const m=head.match(b.re);const w=m?m[0]:'';merchant=w&&!/tankstelle/i.test(w)?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():'Tankstelle'}
+  else if(b&&b.generic){const l=lines.slice(0,8).find(x=>b.re.test(x)&&!findPrice(x));merchant=l?cleanMerchant(l):b.name}
   else if(b) merchant=b.name;
   else{
-    for(const l of lines){if(findPrice(l))break;if(letters(l)>=3&&!SKIP.test(l)&&!NOTNAME.test(l)&&!TOTAL.test(l)){merchant=l.slice(0,40);break}}
+    for(const l of lines){if(findPrice(l))break;if(letters(l)>=3&&!SKIP.test(l)&&!NOTNAME.test(l)&&!TOTAL.test(l)&&!/^rechnung\b/i.test(l)){merchant=cleanMerchant(l);break}}
   }
-  const dm=text.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
-  if(dm){const y=dm[3].length===2?'20'+dm[3]:dm[3];const mo=+dm[2],da=+dm[1];
-    if(mo>=1&&mo<=12&&da>=1&&da<=31&&+y>2000){date=y+'-'+pad(mo)+'-'+pad(da);dateFound=true}}
+  const dt=pickDate(lines);
+  const votes={};const vote=(a,w)=>{if(!(a>0))return;const k=r2(a).toFixed(2);votes[k]=(votes[k]||0)+w};
   const items=[];let pending=null;
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
     if(TOTAL.test(line)&&!/zwischen|subtotal/i.test(line)){
       let p=findPrice(line);
       if(!p&&lines[i+1]){const q=findPrice(lines[i+1]);if(q&&letters(q.rest)===0)p=q}
-      if(p&&p.amt>0) total=p.amt;
+      if(p&&p.amt>0){if(/netto/i.test(line))netAmt=p.amt;else{total=p.amt;vote(p.amt,3)}}
       pending=null;continue;
     }
+    // Zahlungs- und Steuerzeilen: Betrag merken, aber nicht als Position
+    const amts=(line.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2}/g)||[]).map(toNum);
+    if(/%/.test(line)&&amts.length>=3){vote(amts[amts.length-1],1);pending=null;continue}
+    if(/netto/i.test(line)&&amts.length&&!/%/.test(line))netAmt=amts[amts.length-1];
+    if(/(mwst|umsatzsteuer|ust\b)/i.test(line)&&amts.length===1&&/zzgl|\+|zuz/i.test(line))vatAmt=amts[0];
+    if(PAYLINE.test(line)&&amts.length){vote(amts[amts.length-1],1);pending=null;continue}
     if(QTY.test(line)) continue;
-    if(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/.test(line)||/^[A-D]\s*=/.test(line)) continue;
+    if(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/.test(line)||/^[A-D]\s*[:=]/.test(line)) continue;
     const disc=DISC.test(line);
     if(SKIP.test(line)&&!disc){pending=null;continue}
     const p=findPrice(line);
@@ -294,15 +348,59 @@ function parseReceipt(text){
     if(p.amt===0) continue;
     items.push({name,amount:p.amt});
   }
-  return {merchant,date,dateFound,total,items};
+  // Gesamtbetrag per Mehrheit: „Gesamtbetrag“, Kartenzahlung und Brutto-Spalte stimmen ab
+  const top=Object.entries(votes).sort((x,y)=>y[1]-x[1]||(+y[0])-(+x[0]))[0];
+  if(top&&(total==null||top[1]>(votes[r2(total).toFixed(2)]||0)))total=+top[0];
+  const totalVotes=total!=null?(votes[r2(total).toFixed(2)]||0):0;
+  // Netto-Rechnung: MwSt. anteilig auf die Positionen verteilen
+  let gross=null;const sum=r2(items.reduce((a,x)=>a+x.amount,0));
+  if(total!=null&&sum>0&&total-sum>0.01){
+    const ratio=total/sum,explicit=/zzgl|zuz(ü|ue)glich|nettobetrag|summe\s*netto|netto\s*summe|gesamt\s*netto|netto\s*gesamt|rechnungsbetrag\s*netto/i.test(text);
+    const netOk=netAmt==null||Math.abs(netAmt-sum)<0.05;
+    const vatOk=vatAmt==null||Math.abs(sum+vatAmt-total)<0.05;
+    if(netOk&&vatOk&&(explicit&&ratio>1.05&&ratio<1.20||Math.abs(ratio-1.19)<0.002||Math.abs(ratio-1.07)<0.002)){
+      items.forEach(x=>x.amount=r2(x.amount*ratio));
+      const diff=r2(total-items.reduce((a,x)=>a+x.amount,0));
+      if(diff){const big=items.reduce((m,x)=>x.amount>m.amount?x:m,items[0]);big.amount=r2(big.amount+diff)}
+      gross={net:sum,vat:r2(total-sum)};
+    }
+  }
+  return {merchant,date:dt?dt.iso:'',dateFound:!!dt,total,totalVotes,items,gross,due:findDue(lines,dt&&dt.iso),type:merchantType(merchant)};
 }
 
+const CRAFT_LABOR=/ARBEIT|LOHN|MONTAGE|MONTEUR|ANFAHRT|FAHRT|STUNDE|MEISTER|GESELLE|REPARATUR|WARTUNG|ENTSORG|DEMONTAGE|EINBAU|INSTALLATION/;
+function fixHintFor(merchant,type){
+  if(!merchant)return null;
+  const stop=new Set(['GMBH','MARKT','HANDELS','SERVICE','DEUTSCHLAND','TANKSTELLE','GESELLSCHAFT','STADT']);
+  const words=normKey(merchant).split(' ').filter(w=>w.length>=4&&!stop.has(w));
+  return state.fixed.find(f=>f.kind!=='in'&&(
+    (type==='utility'&&/strom|gas|wasser|energie|nebenkosten|heiz|abschlag/i.test(f.name))||
+    normKey(f.name).split(' ').some(w=>w.length>=4&&words.includes(w))))||null;
+}
 function makeDraft(parsed){
   const mi=merchantInfo(parsed.merchant);
   let items=parsed.items;
   if(!items.length) items=[{name:parsed.merchant||'',amount:parsed.total||0}];
+  const type=parsed.type||merchantType(parsed.merchant);
+  const fx=fixHintFor(parsed.merchant,type);
+  const mkItems=list=>list.map(it=>{const c=classify(it.name,mi);const k=normKey(it.name);
+      let tax=state.rules.tax[k]||'';
+      if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
+      if(!tax&&type==='medical')tax='krankheit';
+      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}});
+  const sum=r2(items.reduce((a,x)=>a+x.amount,0));
+  let collapsed=null;
+  // Positionen gehen nicht auf, aber der Laden hat nur eine Kategorie: sicheren Gesamtbetrag nehmen
+  if(parsed.total!=null&&Math.abs(sum-parsed.total)>=0.01&&mi.single&&parsed.items.length){
+    collapsed=mkItems(items);items=[{name:parsed.merchant||'Einkauf',amount:parsed.total}];
+  }
   return {id:null,refund:false,merchant:parsed.merchant,date:parsed.date||today(),dateGuessed:!parsed.dateFound,total:parsed.total,always:false,
-    items:items.map(it=>{const c=classify(it.name,mi);return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax:state.rules.tax[normKey(it.name)]||''}})};
+    gross:parsed.gross||null,open:!!parsed.due,due:parsed.due||'',fixHint:fx?fx.id:null,collapsed,
+    items:items.map(it=>{const c=classify(it.name,mi);const k=normKey(it.name);
+      let tax=state.rules.tax[k]||'';
+      if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
+      if(!tax&&type==='medical')tax='krankheit';
+      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}})};
 }
 function reclassify(){
   const d=ui.draft;if(!d)return;
@@ -330,7 +428,7 @@ SUMME                 EUR   12,92
 Geg. Girocard         EUR   12,92
 Datum: ${today().split('-').reverse().join('.')}  Uhrzeit: 17:42`;
 
-/* ---------- Texterkennung (läuft im Browser auf dem Handy) ---------- */
+/* ---------- Texterkennung und PDF (läuft im Browser auf dem Handy) ---------- */
 let tessPromise=null,workerPromise=null;
 function loadTesseract(){
   if(window.Tesseract)return Promise.resolve();
@@ -342,56 +440,155 @@ function setProgress(label,p){
   const l=document.getElementById('ocr-label'),b=document.getElementById('ocr-bar');
   if(l)l.textContent=label;if(b)b.style.width=Math.round((ui.ocr.p||0)*100)+'%';
 }
+let ocrPass='';
 async function getWorker(){
   if(!workerPromise){
     workerPromise=window.Tesseract.createWorker('deu',1,{logger:m=>{
-      const map={'loading tesseract core':'Lade Texterkennung','initializing tesseract':'Starte Texterkennung','loading language traineddata':'Lade deutsche Sprachdaten','initializing api':'Starte Texterkennung','recognizing text':'Lese Text'};
+      const map={'loading tesseract core':'Lade Texterkennung','initializing tesseract':'Starte Texterkennung','loading language traineddata':'Lade deutsche Sprachdaten','initializing api':'Starte Texterkennung','recognizing text':'Lese Text'+ocrPass};
       setProgress((map[m.status]||'Bereite vor')+' …',m.progress)}}).catch(e=>{workerPromise=null;throw e});
   }
   return workerPromise;
 }
-function prepImage(file){
-  return new Promise((res,rej)=>{
-    const url=URL.createObjectURL(file);const img=new Image();
-    img.onload=()=>{
-      let w=img.naturalWidth,h=img.naturalHeight;const long=Math.max(w,h);
-      let s=long>2200?2200/long:(long<1100?2:1);w=Math.round(w*s);h=Math.round(h*s);
-      const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
-      x.drawImage(img,0,0,w,h);
-      try{const d=x.getImageData(0,0,w,h),a=d.data;
-        for(let i=0;i<a.length;i+=4){let g=.299*a[i]+.587*a[i+1]+.114*a[i+2];g=(g-128)*1.35+128;g=g<0?0:g>255?255:g;a[i]=a[i+1]=a[i+2]=g}
-        x.putImageData(d,0,0)}catch(e){}
-      res({canvas:c,url})};
-    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('img'))};
-    img.src=url;
-  });
+function loadImage(file){
+  return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();
+    img.onload=()=>res({img,url});img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('img'))};img.src=url});
 }
+// Bon im Foto finden: größte helle, farblose Fläche (Papier) vor dunklerem Hintergrund
+function findPaper(src,W,H){
+  const s=400/Math.max(W,H),w=Math.max(1,Math.round(W*s)),h=Math.max(1,Math.round(H*s));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(src,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data,n=w*h,g=new Uint8Array(n),ok=new Uint8Array(n),hist=new Array(256).fill(0);
+  for(let i=0,j=0;i<n;i++,j+=4){const r=d[j],gg=d[j+1],b=d[j+2];g[i]=(r*77+gg*150+b*29)>>8;hist[g[i]]++;ok[i]=(Math.max(r,gg,b)-Math.min(r,gg,b))<40?1:0}
+  let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];let wb=0,sb=0,best=0,th=128;
+  for(let t=0;t<256;t++){wb+=hist[t];if(!wb||wb===n)continue;sb+=t*hist[t];const mb=sb/wb,mf=(sum-sb)/(n-wb),v=wb*(n-wb)*(mb-mf)*(mb-mf);if(v>best){best=v;th=t}}
+  const lab=new Int32Array(n),stack=new Int32Array(n);let bestN=0,box=null,id=0;
+  for(let i=0;i<n;i++){
+    if(lab[i]||!ok[i]||g[i]<=th)continue;id++;let sp=0,cnt=0,x0=w,x1=0,y0=h,y1=0;stack[sp++]=i;lab[i]=id;
+    while(sp){const k=stack[--sp],px=k%w,py=(k-px)/w;cnt++;if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
+      const nb=[px>0?k-1:-1,px<w-1?k+1:-1,py>0?k-w:-1,py<h-1?k+w:-1];
+      for(const q of nb)if(q>=0&&!lab[q]&&ok[q]&&g[q]>th){lab[q]=id;stack[sp++]=q}}
+    if(cnt>bestN){bestN=cnt;box=[x0,y0,x1,y1]}
+  }
+  const frac=bestN/n;
+  if(!box||frac<0.04||frac>0.97||(box[2]-box[0])<w*0.12||(box[3]-box[1])<h*0.12)return {x:0,y:0,w:W,h:H,cropped:false};
+  const m=6,x0=Math.max(0,(box[0]-m)/s),y0=Math.max(0,(box[1]-m)/s),x1=Math.min(W,(box[2]+m+1)/s),y1=Math.min(H,(box[3]+m+1)/s);
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0,cropped:true};
+}
+// Zwei Fassungen für die Texterkennung: Graustufen mit gestrecktem Kontrast und Schwarz-Weiß mit örtlicher Schwelle
+function prepVariants(src,W,H){
+  const r=findPaper(src,W,H);
+  let tw=Math.min(1600,Math.max(r.w,1200));tw=Math.min(tw,r.w*3);
+  let th=Math.round(r.h*tw/r.w);
+  if(tw*th>5e6){const k=Math.sqrt(5e6/(tw*th));tw=Math.round(tw*k);th=Math.round(th*k)}
+  tw=Math.max(1,Math.round(tw));th=Math.max(1,th);
+  const c=document.createElement('canvas');c.width=tw;c.height=th;const x=c.getContext('2d',{willReadFrequently:true});
+  x.fillStyle='#fff';x.fillRect(0,0,tw,th);x.drawImage(src,r.x,r.y,r.w,r.h,0,0,tw,th);
+  const img=x.getImageData(0,0,tw,th),d=img.data,n=tw*th,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);
+  for(let i=0,j=0;i<n;i++,j+=4){g[i]=(d[j]*77+d[j+1]*150+d[j+2]*29)>>8;hist[g[i]]++}
+  let lo=0,hi=255,acc=0;for(let t=0;t<256;t++){acc+=hist[t];if(acc>=n*0.02){lo=t;break}}
+  acc=0;for(let t=255;t>=0;t--){acc+=hist[t];if(acc>=n*0.02){hi=t;break}}
+  const span=Math.max(1,hi-lo);for(let i=0;i<n;i++)g[i]=(g[i]-lo)*255/span;
+  for(let i=0,j=0;i<n;i++,j+=4){d[j]=d[j+1]=d[j+2]=g[i];d[j+3]=255}
+  x.putImageData(img,0,0);
+  const bw=document.createElement('canvas');bw.width=tw;bw.height=th;const bx=bw.getContext('2d');const bi=bx.createImageData(tw,th),bd=bi.data;
+  const W1=tw+1,ii=new Uint32Array(W1*(th+1));
+  for(let yy=1;yy<=th;yy++){let row=0;for(let xx=1;xx<=tw;xx++){row+=g[(yy-1)*tw+xx-1];ii[yy*W1+xx]=ii[(yy-1)*W1+xx]+row}}
+  const rad=Math.max(7,Math.round(tw/40)),C=12;
+  for(let yy=0;yy<th;yy++){const ya=Math.max(0,yy-rad),yb=Math.min(th,yy+rad+1);
+    for(let xx=0;xx<tw;xx++){const xa=Math.max(0,xx-rad),xb=Math.min(tw,xx+rad+1);
+      const S=ii[yb*W1+xb]-ii[ya*W1+xb]-ii[yb*W1+xa]+ii[ya*W1+xa],mean=S/((yb-ya)*(xb-xa));
+      const v=g[yy*tw+xx]<mean-C?0:255,j=(yy*tw+xx)*4;bd[j]=bd[j+1]=bd[j+2]=v;bd[j+3]=255}}
+  bx.putImageData(bi,0,0);
+  return {gray:c,bw,cropped:r.cropped};
+}
+function scoreParse(p){
+  const sum=p.items.reduce((a,x)=>a+x.amount,0);let sc=0;
+  if(p.total!=null)sc+=3+Math.min(p.totalVotes||0,6);
+  if(p.total!=null&&p.items.length&&Math.abs(sum-p.total)<0.02)sc+=8;
+  sc+=Math.min(p.items.length,6)-2*p.items.filter(i=>letters(i.name)<3).length;
+  if(p.dateFound)sc+=1;if(p.merchant&&letters(p.merchant)>=3)sc+=1;
+  return sc;
+}
+async function ocrCanvases(variants){
+  setProgress('Lade Texterkennung …',0);
+  await loadTesseract();const w=await getWorker();
+  const passes=[{c:variants.bw,psm:'4'},{c:variants.gray,psm:'6'}];let best=null;
+  for(let i=0;i<passes.length;i++){
+    ocrPass=` (Durchgang ${i+1} von ${passes.length})`;setProgress('Lese Text'+ocrPass+' …',0);
+    try{await w.setParameters({tessedit_pageseg_mode:passes[i].psm,preserve_interword_spaces:'1'})}catch(e){}
+    const {data}=await w.recognize(passes[i].c);const text=data.text||'';const p=parseReceipt(text);const sc=scoreParse(p);
+    if(!best||sc>best.sc)best={text,p,sc};
+    const sum=p.items.reduce((a,x)=>a+x.amount,0);
+    if(p.total!=null&&p.items.length&&Math.abs(sum-p.total)<0.02&&(p.totalVotes||0)>=2)break; // eindeutig, zweiter Durchgang unnötig
+  }
+  ocrPass='';return best;
+}
+/* PDF: Text direkt auslesen, eingescannte PDFs über die Texterkennung */
+const PDFJS_BASE='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/';
+let pdfjsPromise=null;
+function loadPdfjs(){
+  // Der PDF-Leser läuft direkt in der App (ohne Hintergrund-Worker): robuster und für Rechnungen schnell genug
+  if(!pdfjsPromise)pdfjsPromise=(async()=>{
+    const [lib,wk]=await Promise.all([import(PDFJS_BASE+'build/pdf.min.mjs'),import(PDFJS_BASE+'build/pdf.worker.min.mjs')]);
+    globalThis.pdfjsWorker=wk;
+    return lib;
+  })().catch(e=>{pdfjsPromise=null;throw e});
+  return pdfjsPromise;
+}
+function pageText(tc){
+  const rows=[];
+  for(const it of tc.items){if(!it.str||!it.str.trim())continue;const x=it.transform[4],y=it.transform[5],h=Math.abs(it.transform[3])||10;
+    let row=rows.find(r=>Math.abs(r.y-y)<h*0.5);if(!row){row={y,h,parts:[]};rows.push(row)}row.parts.push({x,w:it.width||0,s:it.str})}
+  rows.sort((a,b)=>b.y-a.y);
+  return rows.map(r=>{r.parts.sort((a,b)=>a.x-b.x);let out='',end=null;
+    for(const p of r.parts){if(end!=null){const gap=p.x-end;out+=gap>r.h*1.5?'   ':gap>r.h*0.15?' ':''}out+=p.s;end=p.x+p.w}
+    return out.trim()}).join('\n');
+}
+async function readPdf(file){
+  setProgress('Öffne PDF …',0.1);
+  const lib=await loadPdfjs();
+  const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,
+    cMapUrl:PDFJS_BASE+'cmaps/',cMapPacked:true,standardFontDataUrl:PDFJS_BASE+'standard_fonts/'}).promise;
+  const n=Math.min(doc.numPages,4);let text='';
+  for(let i=1;i<=n;i++){const pg=await doc.getPage(i);text+=pageText(await pg.getTextContent())+'\n';setProgress('Lese PDF …',i/n)}
+  if(letters(text)>=20)return {text,p:parseReceipt(text)};
+  // eingescannt: erste Seite als Bild rendern und erkennen
+  const pg=await doc.getPage(1);const vp0=pg.getViewport({scale:1});const vp=pg.getViewport({scale:Math.min(3,1600/vp0.width)});
+  const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+  await pg.render({canvasContext:c.getContext('2d'),canvas:c,viewport:vp}).promise;
+  await new Promise(r=>c.toBlob(b=>{if(b){if(ui.photoUrl)URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=URL.createObjectURL(b)}r()},'image/jpeg',0.8));
+  return ocrCanvases(prepVariants(c,c.width,c.height));
+}
+const withTimeout=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+const isPdf=f=>f&&(f.type==='application/pdf'||/\.pdf$/i.test(f.name||''));
 async function runOCR(file){
   if(!file)return;
-  if(!/^image\//.test(file.type||'image/')){ui.err='Das ist kein Bild. Wähle ein Foto oder einen Screenshot.';render();return}
+  const pdf=isPdf(file);
+  if(!pdf&&!/^image\//.test(file.type||'image/')){ui.err='Diese Datei kann die App nicht lesen. Wähle ein Foto, einen Screenshot oder eine PDF-Rechnung.';render();return}
   if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}
-  ui.err='';ui.draft=null;ui.ocr={label:'Bereite Foto vor …',p:0};go('beleg');
+  ui.err='';ui.draft=null;ui.ocr={label:pdf?'Öffne PDF …':'Bereite Foto vor …',p:0};go('beleg');
   try{
-    const {canvas,url}=await prepImage(file);ui.photoUrl=url;
-    setProgress('Lade Texterkennung …',0);
-    await loadTesseract();
-    const w=await getWorker();
-    setProgress('Lese Text …',0);
-    const {data}=await w.recognize(canvas);
-    ui.ocr=null;ui.paste=data.text||'';
-    if(!ui.paste.trim()){ui.err='Auf dem Foto wurde kein Text gefunden. Fotografiere den Bon gerade und gut beleuchtet, oder kopiere den Text mit Google Lens.';render();return}
-    parseNow();
+    let res;
+    if(pdf)res=await withTimeout(readPdf(file),60000);
+    else{const {img,url}=await loadImage(file);ui.photoUrl=url;setProgress('Suche den Bon im Foto …',0.05);
+      await new Promise(r=>setTimeout(r,30));
+      res=await ocrCanvases(prepVariants(img,img.naturalWidth,img.naturalHeight))}
+    ui.ocr=null;ui.paste=res.text||'';
+    if(!ui.paste.trim()){ui.err=pdf?'In diesem PDF wurde kein Text gefunden.':'Auf dem Foto wurde kein Text gefunden. Fotografiere den Bon gerade, formatfüllend und gut beleuchtet, oder kopiere den Text mit Google Lens.';render();return}
+    parseNow(res.p);
   }catch(e){
     ui.ocr=null;
     ui.err=e&&e.message==='img'?'Das Bild ließ sich nicht öffnen. Versuche ein anderes Foto oder einen Screenshot.':
+      pdf?'Das PDF ließ sich nicht öffnen. Beim ersten Mal braucht die App dafür Internet. Ist das PDF passwortgeschützt, öffne es in einer PDF-App und kopiere den Text.':
+      e&&e.message==='timeout'?'Das Lesen hat zu lange gedauert. Prüfe die Internetverbindung und versuche es noch einmal.':
       'Die Texterkennung ließ sich nicht laden. Beim ersten Mal braucht sie Internet. Alternativ den Text mit Google Lens kopieren und unten einfügen.';
     render();
   }
 }
-function parseNow(){
+function parseNow(pre){
   const t=ui.paste;
   if(!t.trim()){ui.err='Wähle ein Foto oder füge zuerst den Text eines Belegs ein.';render();return}
-  const p=parseReceipt(t);
+  const p=pre||parseReceipt(t);
   if(!p.items.length&&p.total==null){ui.err='In diesem Text habe ich keine Beträge gefunden. Prüfe, ob die Preise mitkopiert wurden (z. B. „1,29“).';render();return}
   ui.draft=makeDraft(p);ui.dupOk=false;ui.dup=null;ui.err='';render();window.scrollTo(0,0);
 }
@@ -418,6 +615,21 @@ function pieBlock(sl,act,sel,centerLbl){
     <text x="100" y="${c3?110:116}" text-anchor="middle" class="pc2">${c2}</text>${c3?`<text x="100" y="130" text-anchor="middle" class="pc1">${c3}</text>`:''}</svg>
     <div class="plegend">${sl.map(x=>`<button class="${sel===x.id?'on':''}${sel&&sel!==x.id?' dim':''}" data-act="${act}" data-id="${x.id}" aria-pressed="${sel===x.id}"><i class="dot" style="--c:${x.color}"></i><span class="n">${esc(x.label)}</span><span class="num">${fmt(x.value)}</span><span class="pct">${pctTxt(x.value/total)}</span></button>`).join('')}</div></div>`;
 }
+function dueDays(iso){return iso?Math.round((parseD(iso)-parseD(today()))/864e5):null}
+function dueCls(iso){const n=dueDays(iso);return n==null?'soon':n<0?'due':n<=3?'due':'soon'}
+function dueText(iso){const n=dueDays(iso);return n==null?'ohne Datum':n<0?`seit ${-n} ${-n===1?'Tag':'Tagen'} überfällig`:n===0?'heute fällig':`fällig in ${n} ${n===1?'Tag':'Tagen'}`}
+const CHANGES={'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
+let newList=null;
+function computeNew(){
+  const seen=state.prefs.seenVersion;
+  if(!seen&&!state.receipts.some(r=>!r.example)&&!state.fixed.some(f=>!f.example)){state.prefs.seenVersion=APP_VERSION;persist();newList=[];return}
+  newList=Object.keys(CHANGES).filter(v=>cmpVer(v,APP_VERSION)<=0&&(!seen||cmpVer(v,seen)>0)).sort(cmpVer).reverse().flatMap(v=>CHANGES[v]);
+}
+function whatsNew(){
+  if(newList==null)computeNew();
+  if(!newList.length)return '';
+  return `<div class="note update" role="status"><b>Neu in Version ${APP_VERSION}</b><ul class="steps">${newList.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="row" style="margin-top:8px"><button class="primary" data-act="seen">Alles klar</button></div></div>`;
+}
 function yearDue(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),d=+t.slice(8,10);if(m===12&&d>=15)return y;if(m===1)return y-1;return null}
 function vMonat(){
   const ym=ui.ym;const st=monthStats(ym);
@@ -430,8 +642,12 @@ function vMonat(){
   const hasEx=state.receipts.some(r=>r.example)||state.fixed.some(f=>f.example)||state.goals.some(g=>g.example);
   let h='';
   if(ui.flash) h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;
+  h+=whatsNew();
   const yd=yearDue();
   if(yd&&!(state.yearExport[yd]&&state.yearExport[yd].done)&&!ui.yearHide) h+=`<div class="note"><b>Jahresabschluss ${yd}:</b> Lade jetzt deinen Jahresexport herunter, mit Jahres-CSV, Steuerliste und Backup.<div class="row" style="margin-top:8px"><button class="primary" data-act="year-go" data-y="${yd}">Zum Jahresexport</button><button class="ghost" data-act="year-later">Später</button></div></div>`;
+  const openInv=state.receipts.filter(r=>r.open).sort((a,b)=>(a.due||'9').localeCompare(b.due||'9'));
+  if(openInv.length) h+=`<div class="note ${openInv.some(r=>dueCls(r.due)==='due')?'bad':'warn'}" role="status"><b>Offene Rechnungen:</b>
+    <div class="openlist">${openInv.slice(0,5).map(r=>`<div><span>${esc(r.merchant||'Rechnung')} · <b class="num">${fmt(rTotal(r))}</b> · ${r.due?fmtD(r.due)+', ':''}${dueText(r.due)}</span><button data-act="paid" data-id="${r.id}">Bezahlt</button></div>`).join('')}</div>${openInv.length>5?`<p class="small" style="margin:6px 0 0">und ${openInv.length-5} weitere</p>`:''}</div>`;
   const due=contracts().filter(x=>x.c.days<=42);
   if(due.length) h+=`<div class="note ${due.some(x=>x.c.days<=14)?'bad':'warn'}" role="status"><b>Kündigungsfrist:</b> ${due.map(({f,c})=>`${esc(f.name)} bis ${fmtD(c.deadline)} (${deadlineText(c)})`).join(' · ')}<div style="margin-top:6px"><a href="#fixkosten">Verträge ansehen</a></div></div>`;
   if(hasEx) h+=`<div class="note warn"><b>Das sind Beispieldaten.</b> Sie zeigen, wie die App gefüllt aussieht.<div class="row" style="margin-top:8px"><button data-act="remove-examples">Beispieldaten entfernen</button></div></div>`;
@@ -475,11 +691,11 @@ function receiptRow(r){
   const open=ui.open===r.id;const cs=[...new Set(r.items.map(i=>i.cat))];const t=rTotal(r);
   return `<div class="item"><button class="head" data-act="toggle" data-id="${r.id}" aria-expanded="${open}">
     <span class="d">${r.date.slice(8)}.${r.date.slice(5,7)}.</span>
-    <span class="m">${esc(r.merchant||'Ohne Händler')}${r.refund?' <span class="tag ret">Retoure</span>':''}${r.example?' <span class="tag ex">Beispiel</span>':''}<span class="dots">${cs.map(c=>`<i class="dot" style="--c:${cat(c).color}" title="${esc(cat(c).name)}"></i>`).join('')}</span></span>
+    <span class="m">${esc(r.merchant||'Ohne Händler')}${r.open?` <span class="tag ${dueCls(r.due)}">offen${r.due?' · bis '+fmtD(r.due).slice(0,6):''}</span>`:''}${r.refund?' <span class="tag ret">Retoure</span>':''}${r.example?' <span class="tag ex">Beispiel</span>':''}<span class="dots">${cs.map(c=>`<i class="dot" style="--c:${cat(c).color}" title="${esc(cat(c).name)}"></i>`).join('')}</span></span>
     <span class="num${t<0?' neg':''}">${fmt(t)}</span></button>
     ${open?`<div class="detail"><div class="lines">${r.items.map(i=>`<div><span class="n">${esc(i.name)}${i.tax?` <span class="tag tax" title="${esc(TAXKINDS[i.tax]||'')}">§ absetzbar</span>`:''}</span><span class="c">${esc(cat(i.cat).name)}</span><span class="num">${fmt(i.amount)}</span></div>`).join('')}</div>
     <div class="row">${ui.confirmDel===r.id?`<span class="small">Beleg wirklich löschen?</span><button class="danger" data-act="del-yes" data-id="${r.id}">Ja, löschen</button><button data-act="del-no">Abbrechen</button>`
-      :`${r.refund?'':`<button class="primary" data-act="repeat" data-id="${r.id}">Nochmal erfassen</button>`}<button data-act="edit" data-id="${r.id}">Bearbeiten</button>${r.refund?'':`<button data-act="refund" data-id="${r.id}">Retoure erfassen</button><button data-act="tpl-from" data-id="${r.id}">Als Vorlage merken</button>`}<button class="ghost danger" data-act="del" data-id="${r.id}">Löschen</button>`}</div></div>`:''}</div>`;
+      :`${r.open?`<button class="primary" data-act="paid" data-id="${r.id}">Als bezahlt markieren</button>`:''}${r.refund?'':`<button class="${r.open?'':'primary'}" data-act="repeat" data-id="${r.id}">Nochmal erfassen</button>`}<button data-act="edit" data-id="${r.id}">Bearbeiten</button>${r.refund?'':`<button data-act="refund" data-id="${r.id}">Retoure erfassen</button><button data-act="tpl-from" data-id="${r.id}">Als Vorlage merken</button>`}<button class="ghost danger" data-act="del" data-id="${r.id}">Löschen</button>`}</div></div>`:''}</div>`;
 }
 
 /* Vorlagen und Wiederholen */
@@ -508,14 +724,14 @@ function vTemplates(){
 function vBeleg(){
   const d=ui.draft;
   if(ui.ocr) return `<h2>Bon wird gelesen</h2><div class="drop"><b id="ocr-label">${esc(ui.ocr.label)}</b><div class="progress"><i id="ocr-bar" style="width:${Math.round((ui.ocr.p||0)*100)}%"></i></div>
-    <p class="muted small" style="margin:0">Die Texterkennung läuft auf deinem Handy. Beim ersten Mal lädt sie einmalig die deutschen Sprachdaten (einige MB).</p></div>`;
+    <p class="muted small" style="margin:0">Die Texterkennung läuft auf deinem Handy. Beim ersten Mal lädt sie einmalig die deutschen Sprachdaten (einige MB). Für ein sicheres Ergebnis liest sie den Bon bei Bedarf zweimal.</p></div>`;
   if(!d){
     return `${ui.flash?`<div class="flash" role="status">${esc(ui.flash)}</div>`:''}
     <h2>Neuer Beleg</h2>
     ${vTemplates()}
-    <div class="drop${ui.action==='photo'?' hot':''}"><button id="photo-btn" class="primary" data-act="photo" style="justify-content:center">Foto oder Screenshot wählen</button>
+    <div class="drop${ui.action==='photo'?' hot':''}"><button id="photo-btn" class="primary" data-act="photo" style="justify-content:center">Foto, Screenshot oder PDF wählen</button>
       ${ui.action==='photo'?'<p class="small" style="margin:0;font-weight:600">Tippe auf den Knopf, dann „Kamera“ oder ein Bild aus der Galerie wählen.</p>':''}
-      <p class="muted small" style="margin:0">Tipp: In der Galerie kannst du ein Bild auch über „Teilen“ → Kassensturz direkt hierher schicken.</p></div>
+      <p class="muted small" style="margin:0">Tipp: Fotografiere den Bon formatfüllend, gerade und gut beleuchtet. Fotos und PDF-Rechnungen kannst du auch aus Galerie oder Mail über „Teilen“ → Kassensturz schicken.</p></div>
     <details class="note"><summary><b>Erkennung klappt nicht gut? Text selbst kopieren</b></summary>
       <ul class="steps"><li>Foto in Google Fotos öffnen, „Lens“ antippen, „Text“ wählen, „Alles auswählen“ und kopieren, dann unten einfügen.</li>
       <li>Bei Online-Bestellungen den Text der Bestellbestätigung markieren und kopieren.</li></ul></details>
@@ -534,6 +750,9 @@ function vBeleg(){
   const anySugg=d.items.some(i=>!i.cat&&i.suggest);
   let h=`<h2>${d.refund?(d.id?'Retoure bearbeiten':'Retoure erfassen'):(d.id?'Beleg bearbeiten':'Beleg prüfen')}</h2>`;
   if(d.from) h+=`<div class="note">Vorausgefüllt aus ${esc(d.from)}. Das Datum ist heute. Prüfe die Beträge und speichere.</div>`;
+  if(d.collapsed) h+=`<div class="note">Die Einzelpositionen ließen sich nicht sicher lesen. Weil hier alles in eine Kategorie gehört, habe ich den Gesamtbetrag übernommen.<div class="row" style="margin-top:8px"><button data-act="show-items">Erkannte Einzelpositionen anzeigen</button></div></div>`;
+  if(d.gross) h+=`<div class="note">Netto-Rechnung erkannt: ${fmt(d.gross.vat)} MwSt. sind anteilig auf die Positionen verteilt.</div>`;
+  if(d.fixHint&&!d.id){const f=state.fixed.find(x=>x.id===d.fixHint);if(f)h+=`<div class="note warn">Passt das zu deinen Fixkosten „${esc(f.name)}“ (${fmt(f.amount)} ${INTERVALS[f.interval]||''})? Dann würde es doppelt zählen. Erfasse hier nur eine Nachzahlung oder verwirf den Beleg.</div>`}
   if(d.refund&&!d.id) h+=`<div class="note">Entferne die Positionen, die du behalten hast. Gespeichert wird der Betrag als Gutschrift und von den Ausgaben abgezogen.</div>`;
   if(open) h+=`<div class="note warn" role="alert"><b>${open} ${open===1?'Position kennt':'Positionen kennt'} die App noch nicht.</b> Wähle die Kategorie einmal aus. Beim nächsten Mal ordnet die App sie selbst zu.${anySugg?`<div class="row" style="margin-top:8px"><button data-act="accept-all">Alle Vorschläge übernehmen</button></div>`:''}</div>`;
   h+=`<form class="bon" id="draft" autocomplete="off">
@@ -552,9 +771,11 @@ function vBeleg(){
         :`<span class="src">${it.src?esc(it.src):'von dir gewählt'}</span>`}</div>
       <select id="t-${i}" class="taxsel${it.tax?' on':''}" data-row="${i}" data-k="tax" aria-label="Steuerlich absetzbar, Position ${i+1}">${taxOpts(it.tax)}</select></div>`).join('')}</div>
     <div class="row" style="margin-top:8px"><button type="button" class="ghost" data-act="add-row">+ Position</button>
-      ${tot!=null&&Math.abs(diff)>=0.01?`<button type="button" class="ghost" data-act="add-diff">Differenz als Position</button>`:''}</div>
+      ${tot!=null&&Math.abs(diff)>=0.01?`<button type="button" class="ghost" data-act="add-diff">Differenz als Position</button><button type="button" class="ghost" data-act="total-only">Nur Gesamtbetrag verwenden</button>`:''}</div>
     <div class="sumline"><span>Summe Positionen</span><b id="sum">${fmt(d.refund?-sum:sum)}</b></div>
     <p id="diff" class="small" style="margin:6px 0 0;color:var(--warn)">${diffText(tot,sum)}</p>
+    ${!d.refund?`<div class="openbox"><label class="check small"><input id="d-open" type="checkbox" data-f="open"${d.open?' checked':''}> Rechnung noch nicht bezahlt</label>
+      ${d.open?`<label class="f" for="d-due" style="margin-top:6px">Zahlbar bis<input id="d-due" type="date" data-f="due" value="${esc(d.due||'')}"></label>`:''}</div>`:''}
     ${!d.refund&&!d.fromTpl?`<label class="check small" style="margin-top:12px"><input id="d-tpl" type="checkbox" data-f="asTemplate"${d.asTemplate?' checked':''}> Als Vorlage merken (für wiederkehrende Käufe)</label>`:''}
     ${mk&&!d.refund?`<label class="check small" style="margin-top:12px"><input id="d-always" type="checkbox" data-f="always"${d.always?' checked':''}> Bei „${esc(d.merchant)}“ immer ${cats.length===1?`„${esc(cat(cats[0]).name)}“`:'die Kategorie der ersten Position'} verwenden</label>`:''}
   </form>
@@ -726,6 +947,7 @@ function vMehr(){
   const mers=Object.entries(state.rules.merchants).sort((a,b)=>a[0].localeCompare(b[0]));
   let h='';
   if(ui.flash) h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;
+  h+=vGuide();
   if(!ui.installed&&ui.installEvt) h+=`<div class="note"><b>Als App installieren</b><p class="small" style="margin:4px 0 8px">Dann startet Kassensturz vom Startbildschirm, ohne Browserleiste und auch offline.</p><button class="primary" data-act="install">App installieren</button></div>`;
   h+=vTaxYear();
   h+=vLockSettings();
@@ -855,6 +1077,112 @@ async function importAny(text,pw){
   ui.pendingImport=null;ui.pendingEnc=false;doImport(text);
 }
 
+/* ---------- Anleitung (Erklär-Karten) ---------- */
+// Kleine Skizzen, gezeichnet mit den Farben der App (hell und dunkel)
+const ART={
+  welcome:`<rect class="il-paper" x="80" y="10" width="60" height="100" rx="9"/><rect class="il-soft" x="88" y="22" width="44" height="58" rx="3"/><rect class="il-ink" x="94" y="30" width="26" height="4" rx="2"/><rect class="il-muted" x="94" y="40" width="32" height="3" rx="1.5"/><rect class="il-muted" x="94" y="48" width="24" height="3" rx="1.5"/><rect class="il-acc" x="106" y="62" width="20" height="6" rx="3"/><circle class="il-ok" cx="152" cy="86" r="15"/><path class="il-wline" d="M145 86l5 5 9-10"/>`,
+  receipt:`<path class="il-paper" d="M70 12h60v86l-6-5-6 5-6-5-6 5-6-5-6 5-6-5-6 5-6-5-6 5z"/><rect class="il-ink" x="80" y="24" width="30" height="4" rx="2"/><rect class="il-muted" x="80" y="36" width="24" height="3" rx="1.5"/><rect class="il-muted" x="112" y="36" width="10" height="3" rx="1.5"/><rect class="il-muted" x="80" y="45" width="28" height="3" rx="1.5"/><rect class="il-muted" x="112" y="45" width="10" height="3" rx="1.5"/><rect class="il-muted" x="80" y="54" width="20" height="3" rx="1.5"/><rect class="il-muted" x="112" y="54" width="10" height="3" rx="1.5"/><rect class="il-acc" x="80" y="70" width="42" height="5" rx="2.5"/><rect class="il-acc" x="140" y="44" width="40" height="30" rx="6"/><circle class="il-wfill" cx="160" cy="59" r="8"/><circle class="il-acc" cx="160" cy="59" r="4"/>`,
+  pdf:`<path class="il-paper" d="M74 10h44l16 16v84H74z"/><path class="il-soft" d="M118 10v16h16"/><rect class="il-bad" x="82" y="34" width="30" height="14" rx="3"/><text class="il-wtext" x="97" y="45" text-anchor="middle">PDF</text><rect class="il-muted" x="82" y="58" width="44" height="3" rx="1.5"/><rect class="il-muted" x="82" y="66" width="36" height="3" rx="1.5"/><rect class="il-acc" x="82" y="86" width="44" height="5" rx="2.5"/><path class="il-aline" d="M146 60h26m-8-8 8 8-8 8"/>`,
+  learn:`<rect class="il-warnbg" x="22" y="22" width="70" height="24" rx="12"/><text class="il-text" x="57" y="38" text-anchor="middle">Matcha?</text><rect class="il-soft" x="22" y="70" width="70" height="24" rx="12"/><text class="il-text" x="57" y="86" text-anchor="middle">Matcha</text><path class="il-aline" d="M100 82h26m-8-8 8 8-8 8"/><rect class="il-okbg" x="134" y="70" width="70" height="24" rx="12"/><text class="il-text" x="169" y="86" text-anchor="middle">Essen</text><path class="il-mline" d="M57 48v18"/>`,
+  repeat:`<path class="il-paper" d="M50 20h50v70l-5-4-5 4-5-4-5 4-5-4-5 4-5-4-5 4-5-4z"/><path class="il-paper" d="M120 20h50v70l-5-4-5 4-5-4-5 4-5-4-5 4-5-4-5 4-5-4z"/><rect class="il-ink" x="58" y="32" width="26" height="4" rx="2"/><rect class="il-ink" x="128" y="32" width="26" height="4" rx="2"/><rect class="il-acc" x="58" y="62" width="34" height="5" rx="2.5"/><rect class="il-acc" x="128" y="62" width="34" height="5" rx="2.5"/><path class="il-aline" d="M98 46c6-8 18-8 24 0m0 0-1-8m1 8-8 0"/>`,
+  cats:`<rect class="il-c1" x="20" y="24" width="56" height="20" rx="10"/><rect class="il-c2" x="82" y="24" width="64" height="20" rx="10"/><rect class="il-c3" x="152" y="24" width="48" height="20" rx="10"/><rect class="il-c4" x="40" y="54" width="60" height="20" rx="10"/><rect class="il-c5" x="106" y="54" width="70" height="20" rx="10"/><rect class="il-c6" x="64" y="84" width="54" height="20" rx="10"/><rect class="il-c7" x="124" y="84" width="40" height="20" rx="10"/>`,
+  plan:`<rect class="il-paper" x="54" y="14" width="112" height="92" rx="8"/><rect class="il-acc" x="54" y="14" width="112" height="18" rx="8"/><rect class="il-acc" x="54" y="24" width="112" height="8"/>${[0,1,2,3].map(r=>[0,1,2,3,4,5].map(c=>`<rect class="${(r*6+c)%7===2?'il-acc':(r*6+c)%5===0?'il-ok':'il-soft'}" x="${62+c*16}" y="${40+r*15}" width="12" height="10" rx="2"/>`).join('')).join('')}`,
+  pie:`<circle class="il-ring1" cx="80" cy="60" r="32"/><circle class="il-ring2" cx="80" cy="60" r="32" stroke-dasharray="70 201" transform="rotate(-90 80 60)"/><circle class="il-ring3" cx="80" cy="60" r="32" stroke-dasharray="40 201" stroke-dashoffset="-70" transform="rotate(-90 80 60)"/><rect class="il-c1" x="132" y="30" width="60" height="8" rx="4"/><rect class="il-c2" x="132" y="50" width="42" height="8" rx="4"/><rect class="il-c3" x="132" y="70" width="28" height="8" rx="4"/>`,
+  chart:`${[38,52,44,60,48,70,56].map((v,i)=>`<rect class="${i===6?'il-acc':'il-soft'}" x="${40+i*21}" y="${100-v}" width="14" height="${v}" rx="3"/>`).join('')}<path class="il-okline" d="M36 46h150"/>`,
+  contract:`<path class="il-paper" d="M58 12h56l14 14v84H58z"/><rect class="il-muted" x="68" y="34" width="44" height="3" rx="1.5"/><rect class="il-muted" x="68" y="44" width="38" height="3" rx="1.5"/><rect class="il-muted" x="68" y="54" width="42" height="3" rx="1.5"/><path class="il-mline" d="M68 92c6-6 10 4 16-2s8 2 12-2"/><circle class="il-warnbg" cx="152" cy="62" r="24"/><path class="il-warnline" d="M152 48v14l9 6"/>`,
+  goal:`<rect class="il-soft" x="30" y="70" width="160" height="14" rx="7"/><rect class="il-ok" x="30" y="70" width="104" height="14" rx="7"/><path class="il-mline" d="M190 66V28"/><path class="il-acc" d="M190 28h-22l6 8-6 8h22z"/>${[0,1,2,3].map(i=>`<ellipse class="il-varfill" cx="62" cy="${58-i*8}" rx="16" ry="5"/>`).join('')}<text class="il-text" x="110" y="104" text-anchor="middle">65 %</text>`,
+  budget:`<rect class="il-soft" x="40" y="24" width="140" height="10" rx="5"/><rect class="il-ok" x="40" y="24" width="70" height="10" rx="5"/><rect class="il-soft" x="40" y="54" width="140" height="10" rx="5"/><rect class="il-varfill" x="40" y="54" width="120" height="10" rx="5"/><rect class="il-soft" x="40" y="84" width="140" height="10" rx="5"/><rect class="il-bad" x="40" y="84" width="140" height="10" rx="5"/><path class="il-mline" d="M152 18v84" stroke-dasharray="3 3"/>`,
+  invoice:`<path class="il-paper" d="M60 12h70v96H60z"/><rect class="il-ink" x="70" y="24" width="34" height="5" rx="2.5"/><rect class="il-muted" x="70" y="40" width="48" height="3" rx="1.5"/><rect class="il-muted" x="70" y="48" width="40" height="3" rx="1.5"/><rect class="il-acc" x="70" y="80" width="48" height="5" rx="2.5"/><rect class="il-warnbg" x="120" y="54" width="62" height="24" rx="12"/><text class="il-text" x="151" y="70" text-anchor="middle">offen</text>`,
+  tax:`<path class="il-paper" d="M66 12h62v96H66z"/><rect class="il-muted" x="76" y="26" width="42" height="3" rx="1.5"/><rect class="il-muted" x="76" y="34" width="34" height="3" rx="1.5"/><circle class="il-soft" cx="97" cy="72" r="22"/><text class="il-bigtext" x="97" y="82" text-anchor="middle">§</text><path class="il-aline" d="M140 60h26m-8-8 8 8-8 8"/><rect class="il-ok" x="172" y="50" width="22" height="20" rx="4"/>`,
+  backup:`<rect class="il-paper" x="36" y="18" width="46" height="84" rx="8"/><rect class="il-soft" x="43" y="30" width="32" height="50" rx="3"/><path class="il-aline" d="M92 60h30m-8-8 8 8-8 8"/><path class="il-paper" d="M134 30h38l12 12v58h-50z"/><rect class="il-acc" x="146" y="64" width="26" height="22" rx="4"/><path class="il-mline" d="M151 64v-6a8 8 0 0 1 16 0v6"/>`,
+  lock:`<rect class="il-acc" x="80" y="50" width="60" height="50" rx="8"/><path class="il-mline thick" d="M92 50V38a18 18 0 0 1 36 0v12"/><circle class="il-wfill" cx="110" cy="72" r="6"/><rect class="il-wfill" x="108" y="74" width="4" height="12" rx="2"/>`,
+  update:`<circle class="il-soft" cx="110" cy="60" r="40"/><path class="il-aline thick" d="M88 54a24 24 0 0 1 42-10m0 0v-12m0 12h-12M132 66a24 24 0 0 1-42 10m0 0v12m0-12h12"/>`,
+  done:`<circle class="il-ok" cx="110" cy="60" r="38"/><path class="il-wline thick" d="M92 60l12 12 24-26"/>`
+};
+const TUT={
+  start:{title:'Kurze Tour',goto:'monat',steps:[
+    {t:'Willkommen bei Kassensturz',x:'Dein Haushaltsbuch, das nur auf deinem Handy speichert. Kein Konto, keine Bankverbindung, kein Server.',a:'welcome'},
+    {t:'Belege erfassen',x:'Unter „Beleg“ fotografierst du einen Bon oder öffnest eine PDF-Rechnung. Die App liest Händler, Datum und Beträge aus und ordnet jede Position einer Kategorie zu.',a:'receipt'},
+    {t:'Die App lernt mit',x:'Kennt sie ein Produkt noch nicht, wählst du die Kategorie einmal aus. Beim nächsten Bon weiß sie es.',a:'learn'},
+    {t:'Planen',x:'Unter „Planen“ trägst du Einnahmen, feste Kosten, Verträge und Sparziele ein. Sie zählen jeden Monat automatisch.',a:'plan'},
+    {t:'Der Monat auf einen Blick',x:'„Monat“ zeigt Einnahmen, Ausgaben und was übrig bleibt, nach Kategorien als Balken oder Kuchen. Mit den Pfeilen oben wechselst du den Monat, durch Wischen nach links oder rechts den Reiter.',a:'pie'},
+    {t:'Deine Daten sichern',x:'Alles liegt nur auf diesem Handy. Lade unter „Mehr“ ab und zu ein Backup herunter, am besten mit Passwort.',a:'backup'},
+    {t:'Bereit',x:'Mit den Beispieldaten kannst du dich in Ruhe umsehen und sie entfernen, sobald du startest. Diese Anleitung findest du jederzeit unter „Mehr“.',a:'done'}]},
+  beleg:{title:'Beleg erfassen',goto:'beleg',steps:[
+    {t:'Foto oder PDF',x:'Tippe unter „Beleg“ auf „Foto, Screenshot oder PDF wählen“. Fotografiere den Bon gerade, formatfüllend und hell. Aus Galerie oder Mail geht es auch über „Teilen → Kassensturz“.',a:'receipt'},
+    {t:'Prüfen und speichern',x:'Die App zeigt Händler, Datum und Positionen. Passt die Summe nicht zum Bon, siehst du einen Hinweis und gleichst ihn mit „Differenz als Position“ oder „Nur Gesamtbetrag verwenden“ aus.',a:'pdf'},
+    {t:'Ohne Bon',x:'Mit „Ohne Bon eintragen“ erfasst du Ausgaben von Hand. Text aus Google Lens fügst du ins Textfeld ein und tippst auf „Text auswerten“.',a:'learn'},
+    {t:'Nochmal und Vorlagen',x:'Kaufst du etwas öfter, etwa ein Ticket: Beleg im Monat antippen und „Nochmal erfassen“. Oder ihn „Als Vorlage merken“, dann liegt er unter „Beleg“ ganz oben als Knopf.',a:'repeat'},
+    {t:'Retouren',x:'Schickst du etwas zurück, öffne den Originalbeleg und tippe auf „Retoure erfassen“. Der Betrag wird von den Ausgaben abgezogen.',a:'repeat'}]},
+  kategorien:{title:'Kategorien und Lernen',goto:'mehr',steps:[
+    {t:'Automatisch zuordnen',x:'Jede Position bekommt eine Kategorie: über den Händler (Zalando → Kleidung), über Stichwörter (Milch → Essen) oder über das, was du der App beigebracht hast.',a:'cats'},
+    {t:'Unbekannte Produkte',x:'Gelb markierte Positionen kennt die App noch nicht. Wähle einmal die Kategorie, beim Speichern merkt sie sich das.',a:'learn'},
+    {t:'Ganzer Händler',x:'Mit dem Haken „Bei … immer … verwenden“ landet alles von diesem Händler in einer Kategorie.',a:'cats'},
+    {t:'Korrigieren',x:'Unter „Mehr → Gelernte Zuordnungen“ siehst und änderst du alles Gelernte. Eigene Kategorien legst du unter „Kategorien“ an.',a:'learn'}]},
+  fix:{title:'Einnahmen und Fixkosten',goto:'fixkosten',steps:[
+    {t:'Einmal eintragen',x:'Unter „Planen“ trägst du Gehalt, Miete, Strom oder Abos einmal ein. Danach zählen sie jeden Monat automatisch.',a:'plan'},
+    {t:'Rhythmus',x:'Wähle monatlich, vierteljährlich, halbjährlich oder jährlich. Jährliche Beträge rechnet die App auf den Monat um: 60 € Haftpflicht im Jahr sind 5 € pro Monat.',a:'plan'},
+    {t:'Start und Ende',x:'Mit „Ab Monat“ und „Bis Monat“ zählt ein Eintrag nur in diesem Zeitraum. „Einmalig“ zählt nur im gewählten Monat, etwa ein Bonus.',a:'plan'},
+    {t:'Was übrig bleibt',x:'Einnahmen minus Fixkosten, Belege und Sparrate ergibt im Monat „Übrig“, also das, was du noch frei ausgeben kannst.',a:'pie'}]},
+  vertraege:{title:'Verträge und Kündigungsfristen',goto:'fixkosten',anchor:'vertraege',steps:[
+    {t:'Vertrag anlegen',x:'Öffne bei einer Fixkosten-Position „Vertrag & Kündigung“. Trage ein, wann die Mindestlaufzeit endet, die Kündigungsfrist und um wie viel sich der Vertrag danach verlängert.',a:'contract'},
+    {t:'Die App rechnet',x:'Daraus berechnet sie den letzten Tag, an dem du noch kündigen kannst. Verlängert sich der Vertrag, rechnet sie automatisch weiter.',a:'contract'},
+    {t:'Rechtzeitig erinnert',x:'Ab 6 Wochen vor der Frist erscheint im Monat ein Hinweis, ab 2 Wochen in Rot. Alle Fristen stehen unter „Planen → Verträge“.',a:'contract'}]},
+  sparen:{title:'Sparziele und Sparrate',goto:'fixkosten',anchor:'sparziele',steps:[
+    {t:'Sparziel anlegen',x:'Unter „Planen → Sparziele“ tippst du auf „+ Neues Sparziel“. Gib einen Namen ein, etwa „Urlaub“, und optional Zielbetrag und Datum.',a:'goal'},
+    {t:'Die Sparrate',x:'Die Sparrate ist der Betrag, den du jeden Monat zurücklegst. Sie wird ab dem aktuellen Monat automatisch gutgeschrieben. Änderst du sie, gilt die neue Rate ab diesem Monat.',a:'goal'},
+    {t:'Ein- und auszahlen',x:'Mit „+ Einzahlen“ buchst du Extra-Beträge, etwa Weihnachtsgeld. Mit „− Entnehmen“ nimmst du Geld heraus, zum Beispiel wenn du den Urlaub bezahlst. Ein Startguthaben gibst du beim Anlegen an.',a:'goal'},
+    {t:'Fortschritt',x:'Die App zeigt deinen Stand, wie viel du pro Monat brauchst, um das Ziel rechtzeitig zu erreichen, und wann du es mit der aktuellen Rate schaffst.',a:'goal'},
+    {t:'Warum „Übrig“ kleiner wird',x:'Gespartes ist keine Ausgabe, aber auch nicht mehr frei verfügbar. Deshalb zieht die App die Sparrate von „Übrig“ ab. Ist ein Ziel erreicht, kannst du die Rate mit einem Tipp beenden.',a:'pie'}]},
+  budgets:{title:'Budgets',goto:'mehr',steps:[
+    {t:'Einschalten',x:'Unter „Mehr → Budgets“ schaltest du Monatsbudgets ein und trägst pro Kategorie einen Betrag ein, etwa 300 € für Essen.',a:'budget'},
+    {t:'Rechtzeitig gewarnt',x:'Im Monat zeigt jede Kategorie, wie viel noch übrig ist. Ab 80 % wird sie gelb, über 100 % rot, und oben erscheint ein Hinweis.',a:'budget'},
+    {t:'Balken oder Kuchen',x:'Budgets siehst du in der Balkenansicht. Der Kuchen zeigt dafür die Anteile der Kategorien.',a:'pie'}]},
+  rechnungen:{title:'Offene Rechnungen',goto:'monat',steps:[
+    {t:'Zahlungsziel',x:'Steht auf einer Rechnung „Zahlbar bis …“, markiert die App sie beim Prüfen als „noch nicht bezahlt“ mit Datum. Den Haken kannst du auch selbst setzen.',a:'invoice'},
+    {t:'Erinnerung',x:'Offene Rechnungen stehen im Monat ganz oben, kurz vor und nach der Fälligkeit in Rot.',a:'invoice'},
+    {t:'Bezahlt',x:'Hast du überwiesen, tippe auf „Bezahlt“. Als Ausgabe zählt die Rechnung im Monat ihres Rechnungsdatums.',a:'done'}]},
+  steuer:{title:'Steuer und Jahresexport',goto:'mehr',anchor:'steuer',steps:[
+    {t:'Markieren',x:'Unter jeder Position wählst du „§“, etwa Arbeitsmittel oder Fachliteratur. Die App merkt sich das für das Produkt. Auch Fixkosten wie ein Gewerkschaftsbeitrag lassen sich markieren.',a:'tax'},
+    {t:'Handwerker und Arzt',x:'Bei Handwerkerrechnungen schlägt die App für Arbeitslohn und Anfahrt „Handwerkerleistungen“ vor, bei Arztrechnungen „Krankheitskosten“.',a:'tax'},
+    {t:'Jahresliste',x:'Unter „Mehr → Steuer & Jahresexport“ siehst du die Summen je Art und lädst die Steuerliste als CSV. Sie ist eine Sammelhilfe, keine Steuerberatung.',a:'chart'},
+    {t:'Jahresabschluss',x:'Ab dem 15. Dezember erinnert dich die App an den Jahresexport: Jahres-CSV, Steuerliste und Backup.',a:'backup'}]},
+  verlauf:{title:'Verlauf und Suche',goto:'verlauf',steps:[
+    {t:'12 Monate im Blick',x:'„Verlauf“ zeigt Fixkosten, Belege und Einnahmen der letzten 12 Monate. Tippe auf einen Monat, um ihn zu öffnen.',a:'chart'},
+    {t:'Nach Kategorie',x:'Über „Anzeigen“ siehst du nur eine Kategorie, etwa wie sich deine Ausgaben für Essen entwickeln.',a:'chart'},
+    {t:'Suchen',x:'Die Suche findet Positionen in allen Belegen und rechnet die Treffer zusammen, etwa: Wie viel habe ich dieses Jahr für Kaffee ausgegeben?',a:'learn'}]},
+  sicherheit:{title:'Backup, Sperre und Updates',goto:'mehr',steps:[
+    {t:'Nur auf dem Handy',x:'Alle Daten liegen ausschließlich auf diesem Handy. Löschst du die App oder die Browserdaten, sind sie weg.',a:'welcome'},
+    {t:'Backup',x:'Unter „Mehr → Backup“ lädst du eine Sicherung herunter, am besten mit Passwort verschlüsselt, und legst sie etwa in Google Drive ab. Ohne das Passwort lässt sie sich nicht öffnen.',a:'backup'},
+    {t:'App-Sperre',x:'Mit einer PIN unter „Mehr → App-Sperre“ fragt die App beim Start und nach 1 Minute im Hintergrund nach der PIN.',a:'lock'},
+    {t:'Updates',x:'Gibt es eine neue Version, erscheint oben „Neue Version verfügbar“. Ein Tipp auf „Jetzt laden“ genügt, deine Daten bleiben erhalten.',a:'update'}]}
+};
+const TUT_ORDER=['beleg','kategorien','fix','vertraege','sparen','budgets','rechnungen','steuer','verlauf','sicherheit'];
+function openTut(topic){ui.tut={topic,i:0};render()}
+function closeTut(goto){
+  const t=ui.tut&&TUT[ui.tut.topic];ui.tut=null;
+  if(!state.prefs.tutorialDone){state.prefs.tutorialDone=true;persist()}
+  if(goto&&t){if(t.anchor)ui.jumpTo=t.anchor;if(ui.tab!==t.goto)go(t.goto);else{render();if(t.anchor){const n=document.getElementById(t.anchor);ui.jumpTo='';if(n)n.scrollIntoView({block:'start'})}}}
+  else render();
+}
+function vTut(){
+  const t=TUT[ui.tut.topic],n=t.steps.length,i=ui.tut.i,st=t.steps[i],last=i===n-1,first=ui.tut.topic==='start';
+  return `<div class="tut-back" data-act="tut-back"><div class="tut" role="dialog" aria-modal="true" aria-labelledby="tut-h" tabindex="-1" id="tut-card">
+    <div class="tut-top"><span class="eyebrow">${esc(t.title)} · ${i+1}/${n}</span><button class="ghost" data-act="tut-close">${first&&!last?'Überspringen':'Schließen'}</button></div>
+    <div class="tut-art" aria-hidden="true"><svg viewBox="0 0 220 120">${ART[st.a]||''}</svg></div>
+    <h2 id="tut-h">${esc(st.t)}</h2><p>${esc(st.x)}</p>
+    <div class="tut-dots" aria-hidden="true">${t.steps.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>
+    <div class="tut-nav"><button class="ghost" data-act="tut-prev"${i===0?' disabled':''}>Zurück</button>
+      ${last?(first?`<button class="primary" data-act="tut-close">Los geht's</button>`:`<span class="row" style="gap:6px"><button data-act="tut-go">Ausprobieren</button><button class="primary" data-act="tut-close">Fertig</button></span>`)
+        :`<button class="primary" data-act="tut-next">Weiter</button>`}</div>
+  </div></div>`;
+}
+function vGuide(){
+  return `<h2>Anleitung</h2><div class="list guide">
+    <button class="grow" data-act="tut-open" data-t="start"><b>Komplette Tour</b><span class="muted small">${TUT.start.steps.length} Schritte</span><span class="chev" aria-hidden="true">›</span></button>
+    ${TUT_ORDER.map(k=>`<button class="grow" data-act="tut-open" data-t="${k}"><span>${esc(TUT[k].title)}</span><span class="muted small">${TUT[k].steps.length} Schritte</span><span class="chev" aria-hidden="true">›</span></button>`).join('')}</div>`;
+}
+
 /* ---------- Rendern ---------- */
 const main=document.getElementById('main');
 const header=document.querySelector('header');
@@ -868,7 +1196,11 @@ function render(){
   if(ui.updateAvail) h+=`<div class="note update" role="status"><b>Neue Version ${esc(ui.updateAvail)} verfügbar.</b> ${ui.draft?'Speichere oder verwirf zuerst deinen Beleg, sonst geht er verloren.':'Deine Daten bleiben erhalten.'}${getLock()?' Danach fragt die App einmal nach deiner PIN.':''}
     <div class="row" style="margin-top:8px"><button class="primary" data-act="app-reload">Jetzt laden</button><button class="ghost" data-act="update-later">Später</button></div></div>`;
   h+=ui.tab==='beleg'?vBeleg():ui.tab==='fixkosten'?vFixed():ui.tab==='verlauf'?vVerlauf():ui.tab==='mehr'?vMehr():vMonat();
+  if(ui.tut)h+=vTut();
   main.innerHTML=h;
+  if(ui.slideDir){const c='slide-'+ui.slideDir;ui.slideDir=null;main.classList.remove('slide-l','slide-r');if(!reduceMotion()){void main.offsetWidth;main.classList.add(c)}}
+  document.documentElement.classList.toggle('tut-open',!!ui.tut);
+  if(ui.tut){const c=document.getElementById('tut-card');if(c)c.focus({preventScroll:true})}
 }
 function go(tab){if(location.hash!=='#'+tab){location.hash='#'+tab}else render()}
 function route(){const t=(location.hash||'').slice(1);ui.err='';ui.tab=TABS.includes(t)?t:'monat';render();
@@ -919,6 +1251,7 @@ function saveDraft(){
     state.rules.merchants[mk]={cat:d.always?items[0].cat:top,always:!!d.always}}
   const rec={id:d.id||uid(),date:d.date,merchant:d.merchant.trim(),items:recItems};
   if(d.refund)rec.refund=true;if(d.refOf)rec.refOf=d.refOf;
+  if(!d.refund&&d.open){rec.open=true;rec.due=d.due||''}
   const ix=state.receipts.findIndex(r=>r.id===rec.id);
   if(ix>=0)state.receipts[ix]=rec;else state.receipts.push(rec);
   persist();
@@ -991,6 +1324,7 @@ function vTaxYear(){
     <div class="lines">${Object.entries(TAXKINDS).map(([k,v])=>`<div><span class="n">${v}</span><span></span><span class="num">${fmt(tx.by[k]||0)}</span></div>`).join('')}
       <div style="border-top:1px dashed var(--line);padding-top:4px"><span class="n"><b>Gesamt</b> <span class="muted">(${tx.rows.length} Positionen)</span></span><span></span><b class="num">${fmt(tx.total)}</b></div></div>
     <p class="muted small" style="margin:0">Markiere Positionen beim Prüfen eines Belegs oder bei Fixkosten mit „§“. Die Liste ist eine Hilfe für die Steuererklärung, keine Steuerberatung.</p>
+    <p class="muted small" style="margin:0">Handwerkerleistungen: Absetzbar sind nur Arbeits-, Fahrt- und Maschinenkosten, nicht das Material, und nur bei Überweisung. Krankheitskosten wirken erst über der zumutbaren Belastung.</p>
   </div>
   <div class="box" id="jahr" style="margin-top:10px">
     <b>Jahresexport ${y}</b>${ye.done?' <span class="tag ret">erledigt</span>':''}
@@ -1015,15 +1349,27 @@ document.addEventListener('click',ev=>{
     case 'del-yes':state.receipts=state.receipts.filter(r=>r.id!==id);persist();ui.confirmDel=null;ui.flash='Beleg gelöscht.';render();break;
     case 'edit':{const r=state.receipts.find(x=>x.id===id);if(!r)break;
       const m=state.rules.merchants[normKey(r.merchant)];
-      ui.draft={id:r.id,refund:!!r.refund,refOf:r.refOf,merchant:r.merchant,date:r.date,total:null,always:!!(m&&m.always),
+      ui.draft={id:r.id,refund:!!r.refund,refOf:r.refOf,merchant:r.merchant,date:r.date,total:null,always:!!(m&&m.always),open:!!r.open,due:r.due||'',
         items:r.items.map(it=>({name:it.name,amount:fmtIn(r.refund?Math.abs(it.amount):it.amount),cat:it.cat,tax:it.tax||'',src:'gespeichert',flag:false}))};
       ui.err='';ui.dup=null;go('beleg');break}
     case 'refund':{const r=state.receipts.find(x=>x.id===id);if(!r)break;
       ui.draft={id:null,refund:true,refOf:r.id,merchant:r.merchant,date:today(),total:null,always:false,
         items:r.items.filter(it=>it.amount>0).map(it=>({name:it.name,amount:fmtIn(it.amount),cat:it.cat,tax:it.tax||'',src:'vom Originalbon',flag:false}))};
       ui.err='';ui.dup=null;ui.dupOk=false;go('beleg');break}
+    case 'tut-open':openTut(b.dataset.t);break;
+    case 'tut-next':if(ui.tut){ui.tut.i=Math.min(ui.tut.i+1,TUT[ui.tut.topic].steps.length-1);render()}break;
+    case 'tut-prev':if(ui.tut){ui.tut.i=Math.max(ui.tut.i-1,0);render()}break;
+    case 'tut-close':closeTut(false);break;
+    case 'tut-go':closeTut(true);break;
+    case 'tut-back':if(ev.target===b)closeTut(false);break;
+    case 'seen':state.prefs.seenVersion=APP_VERSION;newList=[];persist();render();break;
     case 'app-reload':location.reload();break;
     case 'update-later':ui.updateAvail=null;ui.updateSnoozed=true;render();break;
+    case 'show-items':if(ui.draft&&ui.draft.collapsed){ui.draft.items=ui.draft.collapsed;ui.draft.collapsed=null;render()}break;
+    case 'total-only':{const d=ui.draft;if(!d||d.total==null)break;const cs={};d.items.forEach(x=>{if(x.cat)cs[x.cat]=(cs[x.cat]||0)+Math.abs(toNum(x.amount)||0)});
+      const top=Object.entries(cs).sort((a,b)=>b[1]-a[1])[0];const mi=merchantInfo(d.merchant);
+      d.items=[{name:d.merchant||'Einkauf',amount:fmtIn(d.total),cat:mi.cat||(top?top[0]:''),src:mi.cat?'Händler':(top?'häufigste Kategorie':''),flag:false,suggest:null,tax:''}];render();break}
+    case 'paid':{const r=state.receipts.find(x=>x.id===id);if(r){r.open=false;r.paidOn=today();persist();ui.flash=`„${r.merchant||'Rechnung'}“ als bezahlt markiert.`}render();break}
     case 'chart-mode':state.prefs.chart=b.dataset.m;persist();render();break;
     case 'pie-sel':ui.pieSel=ui.pieSel===id?null:id;render();break;
     case 'pie-sel2':ui.pieSel2=ui.pieSel2===id?null:id;render();break;
@@ -1126,6 +1472,8 @@ document.addEventListener('change',ev=>{
   if(t.dataset.f==='merchant'){const before=JSON.stringify(d.items.map(i=>[i.cat,i.suggest]));reclassify();if(JSON.stringify(d.items.map(i=>[i.cat,i.suggest]))!==before)renderKeepFocus();return}
   if(t.dataset.f==='always'){d.always=t.checked;return}
   if(t.dataset.f==='asTemplate'){d.asTemplate=t.checked;return}
+  if(t.dataset.f==='open'){d.open=t.checked;if(d.open&&!d.due)d.due=addDays(d.date||today(),14);renderKeepFocus();return}
+  if(t.dataset.f==='due'){d.due=t.value;return}
   if(t.dataset.f==='refund'){d.refund=t.checked;render();return}
   if(t.dataset.row!=null&&t.dataset.k==='tax'){d.items[+t.dataset.row].tax=t.value;t.classList.toggle('on',!!t.value);return}
   if(t.dataset.row!=null&&t.dataset.k==='cat'){const it=d.items[+t.dataset.row];it.cat=t.value;it.src=t.value?'von dir gewählt':'';ui.err='';renderKeepFocus();return}
@@ -1137,7 +1485,7 @@ document.addEventListener('submit',ev=>{
     if(ui.lockUntil>Date.now())return;
     const pin=val('unlock-pin');
     pinOk(pin).then(ok=>{
-      if(ok&&pin){ui.locked=false;ui.lockFails=0;ui.lockErr='';render();return}
+      if(ok&&pin){ui.locked=false;ui.lockFails=0;ui.lockErr='';render();maybeTutorial();return}
       ui.lockFails++;ui.lockErr='Falsche PIN.';
       if(ui.lockFails>=5){ui.lockUntil=Date.now()+30000*Math.pow(2,Math.min(ui.lockFails-5,5));setTimeout(()=>{if(ui.locked)render()},ui.lockUntil-Date.now()+50)}
       render()});
@@ -1223,10 +1571,57 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden){ui.hiddenAt=Date.now();return}
   if(!ui.locked&&getLock()&&ui.hiddenAt&&Date.now()-ui.hiddenAt>60000){ui.locked=true;ui.lockErr='';render()}
 });
+document.addEventListener('keydown',e=>{
+  if(!ui.tut)return;
+  if(e.key==='Escape')closeTut(false);
+  else if(e.key==='ArrowRight'){const b=document.querySelector('[data-act=tut-next]');if(b)b.click()}
+  else if(e.key==='ArrowLeft'){const b=document.querySelector('[data-act=tut-prev]');if(b&&!b.disabled)b.click()}
+});
+let swipeX=null;
+document.addEventListener('touchstart',e=>{swipeX=ui.tut&&e.touches.length===1?e.touches[0].clientX:null},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(swipeX==null||!ui.tut)return;const dx=e.changedTouches[0].clientX-swipeX;swipeX=null;
+  if(Math.abs(dx)<60)return;const b=document.querySelector(dx<0?'[data-act=tut-next]':'[data-act=tut-prev]');if(b&&!b.disabled)b.click();
+},{passive:true});
+/* Wischen zwischen den Reitern */
+const reduceMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+let tabSw=null;
+document.addEventListener('touchstart',e=>{
+  tabSw=null;
+  if(ui.tut||ui.locked||ui.ocr||e.touches.length!==1)return;
+  const t=e.touches[0],el=e.target;
+  if(el.closest&&el.closest('select,.chart,.tut-back,[contenteditable]'))return;
+  const fld=el.closest&&el.closest('input,textarea');if(fld&&document.activeElement===fld)return; // nur Felder, in denen du gerade schreibst
+  if(t.clientX<28||t.clientX>window.innerWidth-28)return; // Rand frei lassen für die Zurück-Geste von Android
+  tabSw={x:t.clientX,y:t.clientY,t:Date.now(),dir:null};
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(!tabSw)return;const t=e.touches[0],dx=t.clientX-tabSw.x,dy=t.clientY-tabSw.y;
+  if(!tabSw.dir&&(Math.abs(dx)>10||Math.abs(dy)>10))tabSw.dir=Math.abs(dx)>Math.abs(dy)*1.5?'h':'v';
+  if(tabSw.dir==='v'){tabSw=null;main.style.transform='';return}
+  if(tabSw.dir==='h'&&!reduceMotion()){
+    const i=TABS.indexOf(ui.tab),edge=(dx>0&&i===0)||(dx<0&&i===TABS.length-1);
+    main.style.transition='none';main.style.transform=`translateX(${dx*(edge?0.12:0.3)}px)`;
+  }
+},{passive:true});
+document.addEventListener('touchend',e=>{
+  const sw=tabSw;tabSw=null;
+  if(main.style.transform){main.style.transition='transform .18s ease-out';main.style.transform='';}
+  if(!sw||sw.dir!=='h')return;
+  const t=e.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y;
+  if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-sw.t>800)return;
+  const i=TABS.indexOf(ui.tab)+(dx<0?1:-1);
+  if(i<0||i>=TABS.length)return;
+  main.style.transition='none';main.style.transform='';
+  ui.slideDir=dx<0?'l':'r';go(TABS[i]);
+},{passive:true});
+document.addEventListener('touchcancel',()=>{tabSw=null;main.style.transform=''},{passive:true});
+function maybeTutorial(){if(!state.prefs.tutorialDone&&!ui.locked&&!ui.tut){ui.tut={topic:'start',i:0};render()}}
 ui.locked=!!getLock();
 {const q=new URLSearchParams(location.search);const a=q.get('action');
   if(a==='photo'||a==='text'){ui.action=a;history.replaceState(null,'',location.pathname+'#beleg')}}
 route();
+maybeTutorial();
 if(ui.action){const n=document.getElementById(ui.action==='photo'?'photo-btn':'bon-text');if(n&&!ui.locked)n.focus()}
 checkShared();
 })();

@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com blob: data:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com blob: data:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <style>
 /* Layout: eine schmale Spalte wie ein Kassenzettel; Kopf mit Monat und Reitern bleibt oben, Beträge in Monospace. */
@@ -148,6 +148,48 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:600;font-size:.9
 .plegend .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .plegend .pct{color:var(--muted);text-align:right;font-size:.8rem}
 @media (max-width:520px){.pie{grid-template-columns:1fr}}
+.openbox{margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;display:grid}
+.openlist{display:grid;gap:6px;margin-top:6px}
+.openlist div{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.openlist button{padding:5px 10px;font-size:.82rem}
+.tut-back{position:fixed;inset:0;z-index:50;background:rgba(8,11,20,.55);display:grid;align-items:end;justify-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.tut{width:100%;max-width:440px;max-height:100%;overflow:auto;background:var(--surface);color:var(--ink);border-radius:18px;padding:16px 18px 18px;display:grid;gap:10px;box-shadow:0 18px 50px rgba(0,0,0,.35);outline:none}
+@media (min-width:600px){.tut-back{align-items:center}}
+@media (prefers-reduced-motion:no-preference){.tut{animation:tutIn .22s ease-out}@keyframes tutIn{from{transform:translateY(16px);opacity:.4}to{transform:none;opacity:1}}}
+html.tut-open,html.tut-open body{overflow:hidden}
+.tut-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.eyebrow{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.tut-art{background:var(--accent-soft);border-radius:12px;padding:8px}
+.tut-art svg{display:block;width:100%;height:auto;max-height:150px}
+.tut h2{margin:4px 0 0;font-size:1.25rem}
+.tut p{margin:0;line-height:1.55;min-height:7.8em}
+@media (min-width:430px){.tut p{min-height:6.3em}}
+.tut-dots{display:flex;gap:6px;justify-content:center}
+.tut-dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tut-dots i.on{background:var(--accent);width:20px;border-radius:4px}
+.tut-nav{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tut-nav .primary{min-width:7em;justify-content:center}
+.il-paper{fill:var(--surface);stroke:var(--line);stroke-width:2}
+.il-soft{fill:var(--accent-soft)} .tut-art .il-soft{fill:var(--surface)}
+.il-acc{fill:var(--accent)} .il-ink{fill:var(--ink)} .il-muted{fill:var(--muted);opacity:.45}
+.il-ok{fill:var(--ok)} .il-bad{fill:var(--bad)} .il-varfill{fill:var(--var)} .il-wfill{fill:var(--surface)}
+.il-okbg{fill:var(--surface);stroke:var(--ok);stroke-width:2} .il-warnbg{fill:var(--warn-bg);stroke:var(--warn);stroke-width:2}
+.il-wline{fill:none;stroke:var(--surface);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.il-aline{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.il-mline{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-linecap:round}
+.il-okline{fill:none;stroke:var(--ok);stroke-width:2.5;stroke-dasharray:5 4}
+.il-warnline{fill:none;stroke:var(--warn);stroke-width:3;stroke-linecap:round}
+.thick{stroke-width:5!important}
+.il-text{fill:var(--ink);font:600 11px var(--f-body)} .il-wtext{fill:var(--surface);font:700 10px var(--f-body)} .il-bigtext{fill:var(--accent);font:700 30px var(--f-display)}
+.il-ring1,.il-ring2,.il-ring3{fill:none;stroke-width:14}.il-ring1{stroke:#7b5dc9}.il-ring2{stroke:#2f9e6f}.il-ring3{stroke:#e0891c}
+.il-c1{fill:#2f9e6f}.il-c2{fill:#c2569b}.il-c3{fill:#e0891c}.il-c4{fill:#3a8fd3}.il-c5{fill:#7b5dc9}.il-c6{fill:#d1513d}.il-c7{fill:#1aa3a3}
+.guide button.grow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;width:100%;padding:12px 14px;border-top:1px solid var(--line);cursor:pointer}
+.guide button.grow:first-child{border-top:0;background:var(--accent-soft)}
+.guide button.grow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.guide .chev{color:var(--accent);font-size:1.3rem;line-height:1}
+@media (prefers-reduced-motion:no-preference){main.slide-l{animation:slideL .2s ease-out}main.slide-r{animation:slideR .2s ease-out}
+  @keyframes slideL{from{transform:translateX(36px);opacity:.25}to{transform:none;opacity:1}}@keyframes slideR{from{transform:translateX(-36px);opacity:.25}to{transform:none;opacity:1}}}
 .tpls{display:grid;gap:8px;margin-bottom:16px}
 button.tpl{display:inline-grid;grid-template-columns:auto auto;gap:10px;align-items:baseline;border-color:var(--accent);background:var(--accent-soft);color:var(--ink);padding:10px 14px;border-radius:999px;max-width:100%}
 button.tpl span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -242,7 +284,7 @@ input.pin{font-family:var(--f-mono);font-size:1.6rem;letter-spacing:.4em;text-al
   </header>
   <main id="main"></main>
 </div>
-<input id="photo" type="file" accept="image/*" hidden>
+<input id="photo" type="file" accept="image/*,application/pdf,.pdf" hidden>
 
 <script src="app.js"></script>
 </body>

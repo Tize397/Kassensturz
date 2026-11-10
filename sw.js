@@ -1,6 +1,6 @@
 // Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
 // Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in app.js).
-const VERSION = 'kassensturz-v2.3.0';
+const VERSION = 'kassensturz-v2.4.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
 const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-text-192.png'];
@@ -50,7 +50,7 @@ self.addEventListener('fetch', e => {
         const c = await caches.open(SHARE);
         const file = form.get('image');
         const text = [form.get('title'), form.get('text')].filter(Boolean).join('\n');
-        if (file && typeof file !== 'string') await c.put('shared-image', new Response(file, { headers: { 'content-type': file.type || 'image/jpeg' } }));
+        if (file && typeof file !== 'string') await c.put('shared-image', new Response(file, { headers: { 'content-type': file.type || (/\.pdf$/i.test(file.name || '') ? 'application/pdf' : 'image/jpeg') } }));
         if (text) await c.put('shared-text', new Response(text));
       } catch (err) { /* nichts geteilt */ }
       return Response.redirect(new URL('./?shared=1#beleg', self.registration.scope).href, 303);
