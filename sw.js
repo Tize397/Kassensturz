@@ -1,11 +1,14 @@
-// Kassensturz Service Worker: App offline verfügbar machen und geteilte Bilder annehmen.
-const VERSION = 'kassensturz-v2.2.0';
+// Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
+// Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in app.js).
+const VERSION = 'kassensturz-v2.3.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
 const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-text-192.png'];
+const NET_TIMEOUT = 3500;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' umgeht den Browser-Zwischenspeicher, damit wirklich die neuen Dateien geladen werden
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -16,12 +19,31 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Erst Netz (neueste Version), bei Funkloch nach kurzer Zeit aus dem Speicher
+function networkFirst(doFetch, cacheKey) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = r => { if (!done) { done = true; resolve(r); } };
+    const fromCache = () => caches.match(cacheKey).then(hit => { if (hit) finish(hit); return hit; });
+    const timer = setTimeout(fromCache, NET_TIMEOUT);
+    doFetch().then(res => {
+      clearTimeout(timer);
+      if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(cacheKey, copy)); }
+      finish(res);
+    }).catch(() => {
+      clearTimeout(timer);
+      fromCache().then(hit => finish(hit || Response.error()));
+    });
+  });
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
+  const same = url.origin === location.origin;
 
   // Teilen aus Galerie / Google Lens: Bild oder Text zwischenspeichern, dann App öffnen
-  if (req.method === 'POST' && url.origin === location.origin && url.pathname.endsWith('/share')) {
+  if (req.method === 'POST' && same && url.pathname.endsWith('/share')) {
     e.respondWith((async () => {
       try {
         const form = await req.formData();
@@ -38,25 +60,27 @@ self.addEventListener('fetch', e => {
 
   if (req.method !== 'GET') return;
 
-  // App-Seite: erst Netz (für Updates), sonst aus dem Speicher
-  if (req.mode === 'navigate' && url.origin === location.origin) {
-    e.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(VERSION).then(c => c.put('./index.html', copy));
-        return res;
-      }).catch(() => caches.match('./index.html'))
-    );
+  // Versionsprüfung immer direkt beim Server
+  if (same && url.pathname.endsWith('/version.json')) return;
+
+  // App-Seite
+  if (req.mode === 'navigate' && same) {
+    e.respondWith(networkFirst(() => fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }), './index.html'));
     return;
   }
 
-  // Alles andere (Icons, Schriften, Texterkennung): erst Speicher, sonst Netz und merken
+  // Programmcode und Manifest: ebenfalls erst Netz, damit Updates sofort greifen
+  if (same && /\.(js|webmanifest|html)$/.test(url.pathname)) {
+    e.respondWith(networkFirst(() => fetch(new Request(req, { cache: 'no-cache' })), req));
+    return;
+  }
+
+  // Icons und Texterkennung: erst Speicher, sonst Netz und merken
   e.respondWith(
     caches.match(req).then(hit => hit || fetch(req).then(res => {
       if (res && (res.ok || res.type === 'opaque')) {
         const copy = res.clone();
-        const target = url.origin === location.origin ? VERSION : RUNTIME;
-        caches.open(target).then(c => c.put(req, copy));
+        caches.open(same ? VERSION : RUNTIME).then(c => c.put(req, copy));
       }
       return res;
     }))

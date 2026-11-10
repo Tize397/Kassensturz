@@ -16,7 +16,7 @@
 :root{
   --bg:#eef1f6; --surface:#ffffff; --ink:#171c28; --muted:#586174; --line:#d6dce6;
   --accent:#2a43b5; --accent-ink:#ffffff; --accent-soft:#e3e8fb; --var:#d9822b;
-  --warn-bg:#fff2d4; --warn:#7a5000; --bad:#b3261e; --bad-bg:#fde4e1; --ok:#1f7a4f;
+  --warn-bg:#fff2d4; --warn:#7a5000; --bad:#b3261e; --bad-bg:#fde4e1; --ok:#1f7a4f; --free:#c9d0dc;
   --f-display:system-ui,-apple-system,"Roboto","Segoe UI",sans-serif;
   --f-body:system-ui,-apple-system,"Roboto","Segoe UI",sans-serif;
   --f-mono:ui-monospace,"Roboto Mono","Droid Sans Mono","SF Mono",Menlo,monospace;
@@ -25,7 +25,7 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#0f1219; --surface:#181c26; --ink:#e7eaf2; --muted:#9aa3b6; --line:#2a3142;
   --accent:#8fa1ff; --accent-ink:#0e1330; --accent-soft:#222a4a; --var:#f0a95c;
-  --warn-bg:#3a2d10; --warn:#f2c36a; --bad:#ff8b80; --bad-bg:#3d1916; --ok:#6fd3a0; color-scheme:dark}}
+  --warn-bg:#3a2d10; --warn:#f2c36a; --bad:#ff8b80; --bad-bg:#3d1916; --ok:#6fd3a0; --free:#3a4256; color-scheme:dark}}
 
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -70,6 +70,7 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:600;font-size:.9
 .note{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:.9rem;margin-bottom:14px}
 .note.warn{background:var(--warn-bg);color:var(--warn)}
 .note.bad{background:var(--bad-bg);color:var(--bad)}
+.note.update{background:var(--surface);border:2px solid var(--accent)}
 .note summary{cursor:pointer}
 .flash{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-weight:600}
 
@@ -128,6 +129,29 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:600;font-size:.9
 
 /* Beleg */
 .drop{display:grid;gap:10px;background:var(--surface);border:1px dashed var(--accent);border-radius:12px;padding:16px;margin-bottom:16px}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:28px 0 10px}
+.sechead h2{margin:0}
+.seg{display:inline-grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:6px 12px;font-size:.82rem;color:var(--muted);border-radius:6px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pie{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:16px;align-items:center}
+.pie svg{width:100%;height:auto;max-width:220px;justify-self:center}
+.pie .arc{fill:none;cursor:pointer;transition:opacity .2s,stroke-width .2s}
+.pie .arc.dim{opacity:.28}
+.pie .pc1{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+.pie .pc2{fill:var(--ink);font-size:17px;font-family:var(--f-mono)}
+.plegend{display:grid;gap:2px;min-width:0}
+.plegend button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr) auto 3.2em;gap:8px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:.88rem}
+.plegend button:focus-visible{outline:2px solid var(--accent)}
+.plegend button.on{background:var(--accent-soft)}
+.plegend button.dim{opacity:.5}
+.plegend .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.plegend .pct{color:var(--muted);text-align:right;font-size:.8rem}
+@media (max-width:520px){.pie{grid-template-columns:1fr}}
+.tpls{display:grid;gap:8px;margin-bottom:16px}
+button.tpl{display:inline-grid;grid-template-columns:auto auto;gap:10px;align-items:baseline;border-color:var(--accent);background:var(--accent-soft);color:var(--ink);padding:10px 14px;border-radius:999px;max-width:100%}
+button.tpl span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+button.tpl .num{color:var(--accent);font-size:.85rem}
 .drop.hot{border-style:solid;border-width:2px;background:var(--accent-soft)}
 .progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .progress i{display:block;height:100%;background:var(--accent);width:0}

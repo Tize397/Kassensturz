@@ -1,6 +1,7 @@
 (function(){
 'use strict';
 const KEY='kassensturz-v1';
+const APP_VERSION='2.3.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -118,6 +119,7 @@ function migrate(s){
   s.rules.tax=s.rules.tax||{};
   s.goals=Array.isArray(s.goals)?s.goals.map(g=>({rates:[],...g})):[];s.deposits=Array.isArray(s.deposits)?s.deposits:[];
   s.yearExport=s.yearExport||{};
+  s.templates=Array.isArray(s.templates)?s.templates:[];s.prefs=s.prefs||{};
   s.budgets=s.budgets||{};s.useBudgets=!!s.useBudgets;s.v=3;
   return s;
 }
@@ -128,7 +130,8 @@ const ui={tab:'monat',ym:thisYM(),draft:null,paste:'',open:null,confirmDel:null,
   err:'',dup:null,dupOk:false,ocr:null,photoUrl:null,installEvt:null,installed:false,
   locked:false,lockFails:0,lockUntil:0,lockErr:'',lockMsg:'',forgot:0,hiddenAt:0,
   plainBackup:false,backupErr:'',exportEnc:false,pendingImport:null,pendingEnc:false,
-  goalEdit:null,goalNew:false,depositFor:null,depositSign:1,confirmGoal:null,taxYear:+thisYM().slice(0,4),yearHide:false,action:''};
+  goalEdit:null,goalNew:false,depositFor:null,depositSign:1,confirmGoal:null,taxYear:+thisYM().slice(0,4),yearHide:false,action:'',
+  tplEdit:false,pieSel:null,pieSel2:null,updateAvail:null};
 
 const cat=id=>state.categories.find(c=>c.id===id)||{id:'sonstiges',name:'Sonstiges',color:'#8e95a3'};
 const catOpts=(sel,placeholder)=>(placeholder?`<option value="">${placeholder}</option>`:'')+
@@ -402,6 +405,19 @@ function budgetBar(id,v,max){
   else w=max>0?Math.max(0,v/max*100):0;
   return `<div class="bar ${cls}" style="--c:${c.color}"><span class="lbl">${esc(c.name)}</span><span class="num">${fmt(v)}</span><div class="track"><i style="width:${w}%"></i></div>${bud}</div>`;
 }
+const pctTxt=f=>f>0&&f<0.005?'<1 %':Math.round(f*100)+' %';
+function pieBlock(sl,act,sel,centerLbl){
+  const total=sl.reduce((a,x)=>a+x.value,0);if(total<=0)return `<div class="list"><div class="empty">Keine Werte.</div></div>`;
+  if(sel&&!sl.some(x=>x.id===sel))sel=null;
+  const R=70,SW=26,C=2*Math.PI*R,gap=sl.length>1?1.4:0;let off=0;
+  const arcs=sl.map(x=>{const len=x.value/total*C;const a=`<circle class="arc${sel===x.id?' on':''}${sel&&sel!==x.id?' dim':''}" cx="100" cy="100" r="${R}" style="stroke:${x.color}" stroke-width="${sel===x.id?SW+6:SW}" stroke-dasharray="${Math.max(0.1,len-gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 100 100)" data-act="${act}" data-id="${x.id}"><title>${esc(x.label)}: ${fmt(x.value)}</title></circle>`;off+=len;return a}).join('');
+  const s=sel&&sl.find(x=>x.id===sel);
+  const c1=s?esc(s.label):centerLbl,c2=fmt(s?s.value:total),c3=s?pctTxt(s.value/total):'';
+  return `<div class="pie"><svg viewBox="0 0 200 200" role="img" aria-label="${esc(centerLbl)}: ${sl.map(x=>esc(x.label)+' '+Math.round(x.value/total*100)+' Prozent').join(', ')}">${arcs}
+    <text x="100" y="${c3?88:94}" text-anchor="middle" class="pc1">${c1.length>18?c1.slice(0,17)+'…':c1}</text>
+    <text x="100" y="${c3?110:116}" text-anchor="middle" class="pc2">${c2}</text>${c3?`<text x="100" y="130" text-anchor="middle" class="pc1">${c3}</text>`:''}</svg>
+    <div class="plegend">${sl.map(x=>`<button class="${sel===x.id?'on':''}${sel&&sel!==x.id?' dim':''}" data-act="${act}" data-id="${x.id}" aria-pressed="${sel===x.id}"><i class="dot" style="--c:${x.color}"></i><span class="n">${esc(x.label)}</span><span class="num">${fmt(x.value)}</span><span class="pct">${pctTxt(x.value/total)}</span></button>`).join('')}</div></div>`;
+}
 function yearDue(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),d=+t.slice(8,10);if(m===12&&d>=15)return y;if(m===1)return y-1;return null}
 function vMonat(){
   const ym=ui.ym;const st=monthStats(ym);
@@ -430,9 +446,21 @@ function vMonat(){
     <div class="split" aria-hidden="true">${(()=>{const base=Math.max(st.out+Math.max(0,st.saved),st.inc,0.01);const w=v=>Math.max(0,v)/base*100;
       return `<i style="width:${w(st.fixOut)}%;background:var(--accent)"></i><i style="width:${w(st.varOut)}%;background:var(--var)"></i><i style="width:${w(st.saved)}%;background:var(--ok)"></i>`})()}</div>
     <div class="legend"><span style="--c:var(--accent)">Fixkosten <b class="num">${fmt(st.fixOut)}</b></span><span style="--c:var(--var)">Belege <b class="num">${fmt(st.varOut)}</b></span>${st.saved?`<span style="--c:var(--ok)">Gespart <b class="num">${fmt(st.saved)}</b></span>`:''}${st.inc>0?`<span style="--c:var(--line)">frei</span>`:''}</div>`;
-  h+=`<h2>Nach Kategorie</h2>`;
-  h+=cats.length?`<div class="bars">${cats.map(([id,v])=>budgetBar(id,v,max)).join('')}</div>`
-    :`<div class="list"><div class="empty">Noch keine Ausgaben in diesem Monat.</div></div>`;
+  const mode=state.prefs.chart==='pie'?'pie':'bar';
+  h+=`<div class="sechead"><h2>Nach Kategorie</h2><div class="seg" role="group" aria-label="Darstellung"><button data-act="chart-mode" data-m="bar" aria-pressed="${mode==='bar'}">Balken</button><button data-act="chart-mode" data-m="pie" aria-pressed="${mode==='pie'}">Kuchen</button></div></div>`;
+  if(!cats.length) h+=`<div class="list"><div class="empty">Noch keine Ausgaben in diesem Monat.</div></div>`;
+  else if(mode==='bar') h+=`<div class="bars">${cats.map(([id,v])=>budgetBar(id,v,max)).join('')}</div>`;
+  else{
+    const sl=cats.filter(([,v])=>v>0.004).map(([id,v])=>({id,label:cat(id).name,value:v,color:cat(id).color}));
+    h+=pieBlock(sl,'pie-sel',ui.pieSel,'Ausgaben');
+    if(cats.some(([,v])=>v<-0.004)) h+=`<p class="muted small">Kategorien mit mehr Retouren als Ausgaben sind im Kuchen nicht enthalten.</p>`;
+    if(st.inc>0){
+      const fix=Math.max(0,st.fixOut),va=Math.max(0,st.varOut),sv=Math.max(0,st.saved),free=st.inc-fix-va-sv;
+      const sl2=[{id:'fix',label:'Fixkosten',value:fix,color:'var(--accent)'},{id:'var',label:'Belege',value:va,color:'var(--var)'},{id:'sav',label:'Gespart',value:sv,color:'var(--ok)'},{id:'free',label:'Frei',value:Math.max(0,free),color:'var(--free)'}].filter(x=>x.value>0.004);
+      h+=`<h2>Wohin dein Einkommen geht</h2>`+pieBlock(sl2,'pie-sel2',ui.pieSel2,free<0?'Ausgaben + Sparen':'Einnahmen');
+      if(free<-0.004) h+=`<div class="note bad">Diesen Monat gehen ${fmt(-free)} mehr raus, als reinkommt.</div>`;
+    }
+  }
   if(state.goals.length){
     h+=`<h2>Sparziele</h2><div class="bars">${state.goals.map(g=>{const i=goalInfo(g);return `<div class="bar" style="--c:var(--ok)"><span class="lbl">${esc(g.name)}${i.done?'<small>erreicht</small>':''}</span><span class="num">${fmt(i.bal)}${i.target?` / ${fmt(i.target)}`:''}</span>${i.target?`<div class="track"><i style="width:${i.pct}%"></i></div>`:''}</div>`}).join('')}</div>
     <p class="small" style="margin-top:8px"><a href="#fixkosten">Sparziele verwalten</a></p>`;
@@ -451,7 +479,30 @@ function receiptRow(r){
     <span class="num${t<0?' neg':''}">${fmt(t)}</span></button>
     ${open?`<div class="detail"><div class="lines">${r.items.map(i=>`<div><span class="n">${esc(i.name)}${i.tax?` <span class="tag tax" title="${esc(TAXKINDS[i.tax]||'')}">§ absetzbar</span>`:''}</span><span class="c">${esc(cat(i.cat).name)}</span><span class="num">${fmt(i.amount)}</span></div>`).join('')}</div>
     <div class="row">${ui.confirmDel===r.id?`<span class="small">Beleg wirklich löschen?</span><button class="danger" data-act="del-yes" data-id="${r.id}">Ja, löschen</button><button data-act="del-no">Abbrechen</button>`
-      :`<button data-act="edit" data-id="${r.id}">Bearbeiten</button>${r.refund?'':`<button data-act="refund" data-id="${r.id}">Retoure erfassen</button>`}<button class="ghost danger" data-act="del" data-id="${r.id}">Löschen</button>`}</div></div>`:''}</div>`;
+      :`${r.refund?'':`<button class="primary" data-act="repeat" data-id="${r.id}">Nochmal erfassen</button>`}<button data-act="edit" data-id="${r.id}">Bearbeiten</button>${r.refund?'':`<button data-act="refund" data-id="${r.id}">Retoure erfassen</button><button data-act="tpl-from" data-id="${r.id}">Als Vorlage merken</button>`}<button class="ghost danger" data-act="del" data-id="${r.id}">Löschen</button>`}</div></div>`:''}</div>`;
+}
+
+/* Vorlagen und Wiederholen */
+const tplTotal=t=>t.items.reduce((a,i)=>a+(+i.amount||0),0);
+const tplSig=x=>normKey(x.merchant)+'|'+x.items.map(i=>normKey(i.name)+':'+r2(i.amount)).join(',');
+function addTemplate(r){
+  const t={id:'t'+uid(),name:(r.merchant||(r.items[0]&&r.items[0].name)||'Vorlage').slice(0,40),merchant:r.merchant||'',
+    items:r.items.filter(i=>i.amount>0).map(i=>{const o={name:i.name,amount:r2(i.amount),cat:i.cat};if(i.tax)o.tax=i.tax;return o})};
+  if(!t.items.length||state.templates.some(x=>tplSig(x)===tplSig(t)))return false;
+  state.templates.push(t);return true;
+}
+function openPrefilled(src,from,isTpl){
+  ui.draft={id:null,refund:false,merchant:src.merchant||'',date:today(),total:null,always:false,from,fromTpl:!!isTpl,
+    items:src.items.filter(i=>i.amount>0).map(i=>({name:i.name,amount:fmtIn(i.amount),cat:state.categories.some(c=>c.id===i.cat)?i.cat:'',tax:i.tax||'',src:'übernommen',flag:false}))};
+  if(!ui.draft.items.length)ui.draft.items.push({name:'',amount:'',cat:'',src:'',flag:true});
+  ui.dupOk=true;ui.dup=null;ui.err='';
+}
+function vTemplates(){
+  if(!state.templates.length) return '';
+  if(ui.tplEdit) return `<div class="tpls"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Vorlagen bearbeiten</h3><button class="ghost" data-act="tpl-edit">Fertig</button></div>
+    <div class="list">${state.templates.map(t=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) auto auto"><input id="tn-${t.id}" data-tpl="${t.id}" value="${esc(t.name)}" aria-label="Name der Vorlage"><span class="num">${fmt(tplTotal(t))}</span><button class="icon ghost danger" data-act="tpl-del" data-id="${t.id}" aria-label="Vorlage ${esc(t.name)} löschen">×</button></div>`).join('')}</div></div>`;
+  return `<div class="tpls"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Vorlagen</h3><button class="ghost" data-act="tpl-edit">Bearbeiten</button></div>
+    <div class="chips">${state.templates.map(t=>`<button class="tpl" data-act="tpl-use" data-id="${t.id}"><span>${esc(t.name)}</span><span class="num">${fmt(tplTotal(t))}</span></button>`).join('')}</div></div>`;
 }
 
 function vBeleg(){
@@ -461,6 +512,7 @@ function vBeleg(){
   if(!d){
     return `${ui.flash?`<div class="flash" role="status">${esc(ui.flash)}</div>`:''}
     <h2>Neuer Beleg</h2>
+    ${vTemplates()}
     <div class="drop${ui.action==='photo'?' hot':''}"><button id="photo-btn" class="primary" data-act="photo" style="justify-content:center">Foto oder Screenshot wählen</button>
       ${ui.action==='photo'?'<p class="small" style="margin:0;font-weight:600">Tippe auf den Knopf, dann „Kamera“ oder ein Bild aus der Galerie wählen.</p>':''}
       <p class="muted small" style="margin:0">Tipp: In der Galerie kannst du ein Bild auch über „Teilen“ → Kassensturz direkt hierher schicken.</p></div>
@@ -481,6 +533,7 @@ function vBeleg(){
   const mk=normKey(d.merchant);
   const anySugg=d.items.some(i=>!i.cat&&i.suggest);
   let h=`<h2>${d.refund?(d.id?'Retoure bearbeiten':'Retoure erfassen'):(d.id?'Beleg bearbeiten':'Beleg prüfen')}</h2>`;
+  if(d.from) h+=`<div class="note">Vorausgefüllt aus ${esc(d.from)}. Das Datum ist heute. Prüfe die Beträge und speichere.</div>`;
   if(d.refund&&!d.id) h+=`<div class="note">Entferne die Positionen, die du behalten hast. Gespeichert wird der Betrag als Gutschrift und von den Ausgaben abgezogen.</div>`;
   if(open) h+=`<div class="note warn" role="alert"><b>${open} ${open===1?'Position kennt':'Positionen kennt'} die App noch nicht.</b> Wähle die Kategorie einmal aus. Beim nächsten Mal ordnet die App sie selbst zu.${anySugg?`<div class="row" style="margin-top:8px"><button data-act="accept-all">Alle Vorschläge übernehmen</button></div>`:''}</div>`;
   h+=`<form class="bon" id="draft" autocomplete="off">
@@ -502,6 +555,7 @@ function vBeleg(){
       ${tot!=null&&Math.abs(diff)>=0.01?`<button type="button" class="ghost" data-act="add-diff">Differenz als Position</button>`:''}</div>
     <div class="sumline"><span>Summe Positionen</span><b id="sum">${fmt(d.refund?-sum:sum)}</b></div>
     <p id="diff" class="small" style="margin:6px 0 0;color:var(--warn)">${diffText(tot,sum)}</p>
+    ${!d.refund&&!d.fromTpl?`<label class="check small" style="margin-top:12px"><input id="d-tpl" type="checkbox" data-f="asTemplate"${d.asTemplate?' checked':''}> Als Vorlage merken (für wiederkehrende Käufe)</label>`:''}
     ${mk&&!d.refund?`<label class="check small" style="margin-top:12px"><input id="d-always" type="checkbox" data-f="always"${d.always?' checked':''}> Bei „${esc(d.merchant)}“ immer ${cats.length===1?`„${esc(cat(cats[0]).name)}“`:'die Kategorie der ersten Position'} verwenden</label>`:''}
   </form>
   ${ui.dup?`<div class="note warn" role="alert"><b>Diesen Bon hast du vermutlich schon gespeichert:</b> ${esc(ui.dup.merchant)}, ${ui.dup.date.split('-').reverse().join('.')}, ${fmt(rTotal(ui.dup))}.<div class="row" style="margin-top:8px"><button data-act="save-dup">Trotzdem speichern</button><button data-act="cancel">Verwerfen</button></div></div>`:''}
@@ -713,7 +767,7 @@ function vMehr(){
   </div>
   <h3>Alles löschen</h3>
   <div class="row">${ui.confirmClear?`<span class="small">Wirklich alle Belege, Fixkosten, Einnahmen und Regeln löschen?</span><button class="danger" data-act="clear-yes">Ja, alles löschen</button><button data-act="clear-no">Abbrechen</button>`:`<button class="danger" data-act="clear">Alle Daten löschen</button>`}</div>
-  <p class="muted small" style="margin-top:24px">Kassensturz 2.2 · Daten nur auf diesem Gerät</p>`;
+  <p class="muted small" style="margin-top:24px">Kassensturz ${APP_VERSION} · Daten nur auf diesem Gerät</p>`;
   return h;
 }
 
@@ -811,6 +865,8 @@ function render(){
   document.querySelectorAll('.tabs a').forEach(a=>a.setAttribute('aria-current',a.dataset.tab===ui.tab?'page':'false'));
   document.getElementById('month-label').textContent=ymLabel(ui.ym);
   let h=storageOk?'':`<div class="note bad"><b>Speichern ist blockiert.</b> Änderungen gehen beim Schließen verloren. Prüfe, ob der Speicher des Handys voll ist, und sichere deine Daten unter „Mehr“.</div>`;
+  if(ui.updateAvail) h+=`<div class="note update" role="status"><b>Neue Version ${esc(ui.updateAvail)} verfügbar.</b> ${ui.draft?'Speichere oder verwirf zuerst deinen Beleg, sonst geht er verloren.':'Deine Daten bleiben erhalten.'}${getLock()?' Danach fragt die App einmal nach deiner PIN.':''}
+    <div class="row" style="margin-top:8px"><button class="primary" data-act="app-reload">Jetzt laden</button><button class="ghost" data-act="update-later">Später</button></div></div>`;
   h+=ui.tab==='beleg'?vBeleg():ui.tab==='fixkosten'?vFixed():ui.tab==='verlauf'?vVerlauf():ui.tab==='mehr'?vMehr():vMonat();
   main.innerHTML=h;
 }
@@ -819,6 +875,17 @@ function route(){const t=(location.hash||'').slice(1);ui.err='';ui.tab=TABS.incl
   if(ui.jumpTo){const n=document.getElementById(ui.jumpTo);ui.jumpTo='';if(n)setTimeout(()=>n.scrollIntoView({block:'start'}),0)}}
 window.addEventListener('hashchange',()=>{ui.flash=ui.flashNext||'';ui.flashNext='';ui.confirmDel=null;ui.confirmCat=null;window.scrollTo(0,0);route()});
 
+// Neu zeichnen, ohne dass das gerade angetippte Feld seine Eingabe verliert
+let rkfTimer=null;
+function renderKeepFocus(){
+  clearTimeout(rkfTimer);
+  rkfTimer=setTimeout(()=>{
+    const a=document.activeElement,id=a&&a.id;let ss=null,se=null;
+    try{ss=a.selectionStart;se=a.selectionEnd}catch(e){}
+    render();
+    if(id){const n=document.getElementById(id);if(n){n.focus({preventScroll:true});try{if(ss!=null)n.setSelectionRange(ss,se)}catch(e){}}}
+  },0);
+}
 function updateSums(){
   const d=ui.draft;if(!d)return;
   const sum=d.items.reduce((s,i)=>s+(toNum(i.amount)||0),0);
@@ -856,8 +923,9 @@ function saveDraft(){
   if(ix>=0)state.receipts[ix]=rec;else state.receipts.push(rec);
   persist();
   if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}
+  let tplMsg='';if(d.asTemplate&&!d.refund){tplMsg=addTemplate(rec)?' · Vorlage gemerkt':'';persist()}
   ui.draft=null;ui.paste='';ui.err='';ui.dup=null;ui.dupOk=false;ui.ym=rec.date.slice(0,7);ui.open=rec.id;
-  const msg=(d.refund?'Retoure gespeichert: ':'Beleg gespeichert: ')+fmt(rTotal(rec))+(learned?` · ${learned} ${learned===1?'Zuordnung':'Zuordnungen'} gelernt`:'');
+  const msg=(d.refund?'Retoure gespeichert: ':'Beleg gespeichert: ')+fmt(rTotal(rec))+(learned?` · ${learned} ${learned===1?'Zuordnung':'Zuordnungen'} gelernt`:'')+tplMsg;
   if(location.hash!=='#monat'){ui.flashNext=msg;location.hash='#monat'}else{ui.flash=msg;render()}
 }
 
@@ -954,6 +1022,16 @@ document.addEventListener('click',ev=>{
       ui.draft={id:null,refund:true,refOf:r.id,merchant:r.merchant,date:today(),total:null,always:false,
         items:r.items.filter(it=>it.amount>0).map(it=>({name:it.name,amount:fmtIn(it.amount),cat:it.cat,tax:it.tax||'',src:'vom Originalbon',flag:false}))};
       ui.err='';ui.dup=null;ui.dupOk=false;go('beleg');break}
+    case 'app-reload':location.reload();break;
+    case 'update-later':ui.updateAvail=null;ui.updateSnoozed=true;render();break;
+    case 'chart-mode':state.prefs.chart=b.dataset.m;persist();render();break;
+    case 'pie-sel':ui.pieSel=ui.pieSel===id?null:id;render();break;
+    case 'pie-sel2':ui.pieSel2=ui.pieSel2===id?null:id;render();break;
+    case 'repeat':{const r=state.receipts.find(x=>x.id===id);if(!r)break;openPrefilled(r,`dem Beleg vom ${fmtD(r.date)}`,false);go('beleg');break}
+    case 'tpl-from':{const r=state.receipts.find(x=>x.id===id);if(!r)break;ui.flash=addTemplate(r)?`Vorlage „${(r.merchant||r.items[0].name).slice(0,40)}“ gemerkt. Du findest sie unter „Beleg“.`:'Diese Vorlage gibt es schon.';persist();render();window.scrollTo(0,0);break}
+    case 'tpl-use':{const t=state.templates.find(x=>x.id===id);if(!t)break;openPrefilled(t,`der Vorlage „${t.name}“`,true);render();window.scrollTo(0,0);break}
+    case 'tpl-edit':ui.tplEdit=!ui.tplEdit;render();break;
+    case 'tpl-del':state.templates=state.templates.filter(t=>t.id!==id);if(!state.templates.length)ui.tplEdit=false;persist();render();break;
     case 'photo':ui.action='';document.getElementById('photo').click();break;
     case 'sample':ui.paste=SAMPLE();ui.err='';render();break;
     case 'parse':{ui.paste=(document.getElementById('bon-text')||{}).value||'';parseNow();break}
@@ -1032,6 +1110,7 @@ document.addEventListener('input',ev=>{
 });
 document.addEventListener('change',ev=>{
   const t=ev.target,d=ui.draft;
+  if(t.dataset.tpl){const x=state.templates.find(q=>q.id===t.dataset.tpl);if(x&&t.value.trim()){x.name=t.value.trim().slice(0,40);persist()}return}
   if(t.id==='photo'){const f=t.files&&t.files[0];t.value='';runOCR(f);return}
   if(t.id==='tax-year'){ui.taxYear=+t.value;render();return}
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
@@ -1044,12 +1123,13 @@ document.addEventListener('change',ev=>{
     if(enc&&!val('import-pw')){ui.pendingImport=txt;ui.pendingEnc=true;ui.importMsg='Dieses Backup ist verschlüsselt. Gib das Passwort ein und tippe auf „Wiederherstellen“.';render();const n=document.getElementById('import-pw');if(n)n.focus()}
     else importAny(txt,val('import-pw'))};r.readAsText(t.files[0]);t.value='';return}
   if(!d)return;
-  if(t.dataset.f==='merchant'){reclassify();render();return}
+  if(t.dataset.f==='merchant'){const before=JSON.stringify(d.items.map(i=>[i.cat,i.suggest]));reclassify();if(JSON.stringify(d.items.map(i=>[i.cat,i.suggest]))!==before)renderKeepFocus();return}
   if(t.dataset.f==='always'){d.always=t.checked;return}
+  if(t.dataset.f==='asTemplate'){d.asTemplate=t.checked;return}
   if(t.dataset.f==='refund'){d.refund=t.checked;render();return}
   if(t.dataset.row!=null&&t.dataset.k==='tax'){d.items[+t.dataset.row].tax=t.value;t.classList.toggle('on',!!t.value);return}
-  if(t.dataset.row!=null&&t.dataset.k==='cat'){const it=d.items[+t.dataset.row];it.cat=t.value;it.src=t.value?'von dir gewählt':'';ui.err='';render();return}
-  if(t.dataset.row!=null&&t.dataset.k==='name'){const it=d.items[+t.dataset.row];if(!it.cat){const c=classify(it.name,merchantInfo(d.merchant));if(!c.flag){it.cat=c.cat;it.src=c.src;render()}}}
+  if(t.dataset.row!=null&&t.dataset.k==='cat'){const it=d.items[+t.dataset.row];it.cat=t.value;it.src=t.value?'von dir gewählt':'';ui.err='';renderKeepFocus();return}
+  if(t.dataset.row!=null&&t.dataset.k==='name'){const it=d.items[+t.dataset.row];if(!it.cat){const c=classify(it.name,merchantInfo(d.merchant));if(!c.flag){it.cat=c.cat;it.src=c.src;renderKeepFocus()}}}
 });
 document.addEventListener('submit',ev=>{
   const f=ev.target;ev.preventDefault();
@@ -1129,7 +1209,17 @@ async function checkShared(){
   }catch(e){}
 }
 
+function cmpVer(a,b){const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<3;i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0}
+let lastCheck=0;
+async function checkUpdate(){
+  if(ui.updateSnoozed||Date.now()-lastCheck<60000)return;lastCheck=Date.now();
+  if(!/^https:$/.test(location.protocol)&&location.hostname!=='localhost')return;
+  try{const r=await fetch('./version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
+    if(j&&j.version&&cmpVer(j.version,APP_VERSION)>0&&ui.updateAvail!==j.version){ui.updateAvail=j.version;render()}}catch(e){}
+}
+setTimeout(checkUpdate,2500);
 document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)checkUpdate();
   if(document.hidden){ui.hiddenAt=Date.now();return}
   if(!ui.locked&&getLock()&&ui.hiddenAt&&Date.now()-ui.hiddenAt>60000){ui.locked=true;ui.lockErr='';render()}
 });
