@@ -61,13 +61,13 @@
       ]
     },
     {
-      "name": "Beleg eintippen",
-      "short_name": "Beleg",
-      "description": "Bon-Text einfügen oder Beleg von Hand eintragen",
-      "url": "./?action=text#beleg",
+      "name": "Schnelleingabe",
+      "short_name": "Schnell",
+      "description": "Ausgabe schnell eintippen, z. B. Kaffee 3,50",
+      "url": "./?action=quick#monat",
       "icons": [
         {
-          "src": "icon-text-192.png",
+          "src": "icon-quick-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }

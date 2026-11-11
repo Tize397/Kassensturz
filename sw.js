@@ -1,9 +1,9 @@
 // Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
 // Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in app.js).
-const VERSION = 'kassensturz-v2.4.0';
+const VERSION = 'kassensturz-v2.6.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
-const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-text-192.png'];
+const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-quick-192.png'];
 const NET_TIMEOUT = 3500;
 
 self.addEventListener('install', e => {
@@ -48,9 +48,13 @@ self.addEventListener('fetch', e => {
       try {
         const form = await req.formData();
         const c = await caches.open(SHARE);
-        const file = form.get('image');
+        const files = form.getAll('image').filter(f => f && typeof f !== 'string');
         const text = [form.get('title'), form.get('text')].filter(Boolean).join('\n');
-        if (file && typeof file !== 'string') await c.put('shared-image', new Response(file, { headers: { 'content-type': file.type || (/\.pdf$/i.test(file.name || '') ? 'application/pdf' : 'image/jpeg') } }));
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          await c.put('shared-image-' + i, new Response(f, { headers: { 'content-type': f.type || (/\.pdf$/i.test(f.name || '') ? 'application/pdf' : 'image/jpeg') } }));
+        }
+        if (files.length) await c.put('shared-count', new Response(String(files.length)));
         if (text) await c.put('shared-text', new Response(text));
       } catch (err) { /* nichts geteilt */ }
       return Response.redirect(new URL('./?shared=1#beleg', self.registration.scope).href, 303);

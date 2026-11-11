@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.4.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.6.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -67,13 +67,13 @@ const MERCHANTS=[
 
 /* Stichwörter: c = als Wortteil, w = als ganzes Wort */
 const KW={
-  essen:{c:['MILCH','BROT','BRÖTCH','BROETCH','KÄSE','KAESE','GOUDA','BUTTER','JOGH','QUARK','SAHNE','EIER','BANANE','APFEL','ÄPFEL','TOMATE','GURKE','PAPRIKA','KARTOFF','ZWIEBEL','SALAT','NUDEL','SPAGH','PASTA','MEHL','ZUCKER','HÄHNCH','HAEHNCH','HACKFL','WURST','SCHINKEN','SALAMI','LACHS','THUNF','PIZZA','MÜSLI','MUESLI','SCHOKO','CHIPS','KEKS','KAFFEE','WASSER','SPRUDEL','SAFT','COLA','FANTA','SPRITE','LIMO','BIER','WEIN','SEKT','RADLER','MATE','PFAND','OBST','GEMÜSE','GEMUESE','BAGUETTE','CROISS','MARMEL','NUTELLA','HONIG','KETCHUP','MAYO','SOSSE','SAUCE','TOFU','HAFER','STUDENTENF','NÜSSE','NUESSE','BREZ','KUCHEN','TIEFKÜHL','ERDBEER','TRAUBE','ORANGE','ZITRONE','BEERE','MÖHRE','KAROTTE','BROKKOLI','AVOCADO','JOGURT','TIRAMISU','BURGER','DÖNER','DOENER','SCHNITZEL','ESPRESSO','CAPPUCC','LATTE','MENÜ','MENUE','GERICHT','SUPPE','POMMES','LAKRITZ','GUMMIB','BONBON','SNACK','ENERGY','EISTEE','SCHORLE','KEBAB','SUSHI','DESSERT','PANNA','FRAICHE','FRAÎCHE','SCHLAGSAHNE'],w:['TEE','REIS','ÖL','OEL','EI','SALZ','EIS','MAIS']},
-  drogerie:{c:['SHAMPOO','DUSCH','ZAHNPASTA','ZAHNCREME','ZAHNBÜRSTE','ZAHNP','ZAHNB','ZAHNC','ZAHNS','DEO','SEIFE','CREME','TOILETTENP','KLOPAP','KÜCHENR','KUECHENR','TASCHENT','SPÜLM','SPUELM','SPÜLT','WASCHM','WASCHP','WEICHSP','REINIG','MÜLLB','MUELLB','SCHWAMM','RASIER','WATTE','KOSMET','MASCARA','LIPP','TAMPON','BINDEN','WINDEL','ALUFOL','FRISCHHALT','BACKPAP','KERZE','BATTERIE','HAARGEL','SPÜLUNG','SPUELUNG','BALEA','NIVEA','ELKOS'],w:[]},
+  essen:{c:['MILCH','BROT','BRÖTCH','BROETCH','KÄSE','KAESE','GOUDA','BUTTER','JOGH','QUARK','SAHNE','EIER','BANANE','APFEL','ÄPFEL','TOMATE','GURKE','PAPRIKA','KARTOFF','ZWIEBEL','SALAT','NUDEL','SPAGH','PASTA','MEHL','ZUCKER','HÄHNCH','HAEHNCH','HACKFL','WURST','SCHINKEN','SALAMI','LACHS','THUNF','PIZZA','MÜSLI','MUESLI','SCHOKO','CHIPS','KEKS','KAFFEE','WASSER','SPRUDEL','SAFT','COLA','FANTA','SPRITE','LIMO','BIER','WEIN','SEKT','RADLER','MATE','PFAND','OBST','GEMÜSE','GEMUESE','BAGUETTE','CROISS','MARMEL','NUTELLA','HONIG','KETCHUP','MAYO','SOSSE','SAUCE','TOFU','HAFER','STUDENTENF','NÜSSE','NUESSE','BREZ','KUCHEN','TIEFKÜHL','ERDBEER','TRAUBE','ORANGE','ZITRONE','BEERE','MÖHRE','KAROTTE','BROKKOLI','AVOCADO','JOGURT','TIRAMISU','BURGER','DÖNER','DOENER','SCHNITZEL','ESPRESSO','CAPPUCC','LATTE','MENÜ','MENUE','GERICHT','SUPPE','POMMES','LAKRITZ','GUMMIB','BONBON','SNACK','ENERGY','EISTEE','SCHORLE','KEBAB','SUSHI','DESSERT','PANNA','FRAICHE','FRAÎCHE','SCHLAGSAHNE','BÄCKER','BAECKER','MITTAGESSEN','ABENDESSEN','FRÜHSTÜCK','FRUEHSTUECK','MENSA','KANTINE','RESTAURANT','PIZZERIA','IMBISS','LIEFERANDO','EINKAUF','SUPERMARKT','LEBENSMITTEL','GETRÄNK','GETRAENK','KAKAO','SMOOTHIE','BRATWURST','CURRYWURST','EISDIELE','CAFÉ','MCDONALD','BURGER KING'],w:['TEE','REIS','ÖL','OEL','EI','SALZ','EIS','MAIS']},
+  drogerie:{c:['SHAMPOO','DUSCH','ZAHNPASTA','ZAHNCREME','ZAHNBÜRSTE','ZAHNP','ZAHNB','ZAHNC','ZAHNS','DEO','SEIFE','CREME','TOILETTENP','KLOPAP','KÜCHENR','KUECHENR','TASCHENT','SPÜLM','SPUELM','SPÜLT','WASCHM','WASCHP','WEICHSP','REINIG','MÜLLB','MUELLB','SCHWAMM','RASIER','WATTE','KOSMET','MASCARA','LIPP','TAMPON','BINDEN','WINDEL','ALUFOL','FRISCHHALT','BACKPAP','KERZE','BATTERIE','HAARGEL','SPÜLUNG','SPUELUNG','BALEA','NIVEA','ELKOS','FRISEUR','FRISÖR','HAARSCHNITT','WASCHPULVER','PUTZMITTEL'],w:[]},
   kleidung:{c:['SHIRT','HEMD','HOSE','JEANS','PULLI','PULLOVER','HOODIE','JACKE','MANTEL','SOCKE','STRUMPF','UNTERHOSE','BOXER','KLEID','SCHUH','SNEAKER','STIEFEL','SANDAL','MÜTZE','MUETZE','SCHAL','GÜRTEL','GUERTEL','BLUSE','LEGGINGS','SHORTS','AIR MAX','SWEATSHIRT','CHINO'],w:['ROCK','TOP','BH']},
-  freizeit:{c:['TICKET','KINO','EINTRITT','SPIEL','LEGO','BUCH','KONZERT','BOWLING','FESTIVAL','MUSEUM','KLETTER','POPCORN'],w:[]},
-  gesund:{c:['IBUPROF','PARACET','ASPIRIN','PFLASTER','VITAMIN','NASENSPR','TABLETT','MAGNESIUM'],w:[]},
+  freizeit:{c:['TICKET','KINO','EINTRITT','SPIEL','LEGO','BUCH','KONZERT','BOWLING','FESTIVAL','MUSEUM','KLETTER','POPCORN','SCHWIMMBAD','FREIBAD','THEATER','ZOO','MINIGOLF','PADEL','SQUASH','BOULDER','VINYL','SCHALLPLATTE'],w:['BAR','PUB','CLUB','PARTY']},
+  gesund:{c:['IBUPROF','PARACET','ASPIRIN','PFLASTER','VITAMIN','NASENSPR','TABLETT','MAGNESIUM','APOTHEKE','ARZT','PHYSIO','MEDIKAMENT','ZAHNARZT','REZEPT','BRILLE','KONTAKTLINSE'],w:[]},
   technik:{c:['KABEL','LADEGER','USB','HDMI','KOPFHÖR','KOPFHOER','TASTATUR','AKKU','ADAPTER','SPEICHERK','POWERBANK','HÜLLE','PANZERGLAS'],w:['MAUS']},
-  mobil:{c:['DIESEL','BENZIN','SUPER E','FAHRKARTE','PARKEN','PARKHAUS','PARKSCHEIN'],w:[]}
+  mobil:{c:['DIESEL','BENZIN','SUPER E','FAHRKARTE','PARKEN','PARKHAUS','PARKSCHEIN','TANKEN','TANKSTELLE','TAXI','BAHNTICKET','BUSTICKET','FAHRSCHEIN','DEUTSCHLANDTICKET','MAUT','WASCHANLAGE','AUTOWÄSCHE','LADESÄULE','E-SCOOTER','LEIHRAD'],w:['BUS','BAHN','ZUG','UBER','SPRIT','ÖPNV','OPNV','VVS','MVV','HVV','BVG','RMV','KVV']}
 };
 
 /* ---------- Speicher ---------- */
@@ -135,7 +135,8 @@ const ui={tab:'monat',ym:thisYM(),draft:null,paste:'',open:null,confirmDel:null,
   locked:false,lockFails:0,lockUntil:0,lockErr:'',lockMsg:'',forgot:0,hiddenAt:0,
   plainBackup:false,backupErr:'',exportEnc:false,pendingImport:null,pendingEnc:false,
   goalEdit:null,goalNew:false,depositFor:null,depositSign:1,confirmGoal:null,taxYear:+thisYM().slice(0,4),yearHide:false,action:'',
-  tplEdit:false,pieSel:null,pieSel2:null,updateAvail:null};
+  tplEdit:false,pieSel:null,pieSel2:null,updateAvail:null,
+  planOpen:null,fxForm:null,fxKind:'out',fxOpen:null,goalOpen:null,moreOpen:null,monOpen:null,showAll:false,catEdit:null,quickAsk:null,quickDone:null,quickErr:''};
 
 const cat=id=>state.categories.find(c=>c.id===id)||{id:'sonstiges',name:'Sonstiges',color:'#8e95a3'};
 const catOpts=(sel,placeholder)=>(placeholder?`<option value="">${placeholder}</option>`:'')+
@@ -146,8 +147,23 @@ const activeIn=(f,ym)=>f.interval===0?f.start===ym:((!f.start||f.start<=ym)&&(!f
 const shareOf=f=>f.interval===0?f.amount:f.amount/(f.interval||1);
 
 /* Steuer */
-const TAXKINDS={arbeitsmittel:'Arbeitsmittel',fachliteratur:'Fachliteratur',fortbildung:'Fortbildung',sonstiges:'Sonstige Werbungskosten',handwerker:'Handwerkerleistungen (Arbeitskosten)',krankheit:'Krankheitskosten'};
-const taxOpts=sel=>`<option value="">nicht absetzbar</option>`+Object.entries(TAXKINDS).map(([k,v])=>`<option value="${k}"${k===sel?' selected':''}>§ ${v}</option>`).join('');
+const TAXKINDS={arbeitsmittel:'Arbeitsmittel',fachliteratur:'Fachliteratur',fortbildung:'Fortbildung',sonstiges:'Sonstige Werbungskosten',vorsorge:'Vorsorge (Versicherungen)',handwerker:'Handwerkerleistungen (Arbeitskosten)',krankheit:'Krankheitskosten'};
+// Gruppen so, wie sie in der Steuererklärung stehen
+const TAXGROUPS=[
+  {id:'wk',name:'Werbungskosten',where:'Anlage N',kinds:['arbeitsmittel','fachliteratur','fortbildung','sonstiges']},
+  {id:'vs',name:'Vorsorgeaufwendungen',where:'Anlage Vorsorgeaufwand',kinds:['vorsorge']},
+  {id:'hw',name:'Handwerkerleistungen (§ 35a)',where:'Haushaltsnahe Aufwendungen',kinds:['handwerker']},
+  {id:'ab',name:'Außergewöhnliche Belastungen',where:'Krankheitskosten',kinds:['krankheit']}];
+// Versicherungen: beruflich → Werbungskosten, private Vorsorge → Vorsorgeaufwendungen, Sachversicherungen → nicht absetzbar
+function taxSuggest(name,catId){
+  const n=String(name||'');
+  if(/(dienst|berufs?|amts)\s*-?\s*haftpflicht|diensthaftpflicht|berufshaftpflicht|schl(ü|ue)ssel\w*.*dienst|berufs-?rechtsschutz/i.test(n))return 'sonstiges';
+  if(/kasko|hausrat|handy|reise|glas|geb(ä|ae)ude|tier|fahrrad|elektronik|garantie/i.test(n))return '';
+  if(/berufsunf(ä|ae)hig|\bbu\b|\bbuz\b|erwerbsunf|unfall|haftpflicht|risikoleben|lebensversicherung|pflege|kranken|zahnzusatz|krankenzusatz/i.test(n))return 'vorsorge';
+  if(catId==='versich'&&/versicherung/i.test(n))return '';
+  return '';
+}
+const taxOpts=sel=>`<option value="">nicht absetzbar</option>`+TAXGROUPS.map(g=>`<optgroup label="${g.name}">${g.kinds.map(k=>`<option value="${k}"${k===sel?' selected':''}>§ ${TAXKINDS[k]}</option>`).join('')}</optgroup>`).join('');
 function taxYear(y){
   const ys=String(y),rows=[],by={};
   state.receipts.filter(r=>r.date&&r.date.startsWith(ys)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>r.items.forEach(i=>{
@@ -387,6 +403,7 @@ function makeDraft(parsed){
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
+      if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
       return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}});
   const sum=r2(items.reduce((a,x)=>a+x.amount,0));
   let collapsed=null;
@@ -400,6 +417,7 @@ function makeDraft(parsed){
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
+      if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
       return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}})};
 }
 function reclassify(){
@@ -618,7 +636,7 @@ function pieBlock(sl,act,sel,centerLbl){
 function dueDays(iso){return iso?Math.round((parseD(iso)-parseD(today()))/864e5):null}
 function dueCls(iso){const n=dueDays(iso);return n==null?'soon':n<0?'due':n<=3?'due':'soon'}
 function dueText(iso){const n=dueDays(iso);return n==null?'ohne Datum':n<0?`seit ${-n} ${-n===1?'Tag':'Tagen'} überfällig`:n===0?'heute fällig':`fällig in ${n} ${n===1?'Tag':'Tagen'}`}
-const CHANGES={'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
+const CHANGES={'2.6.0':['Mehrere Belege auf einmal: Fotos oder PDFs zusammen auswählen oder teilen, die App arbeitet sie nacheinander ab.','Steuer: neue Art „Vorsorge (Versicherungen)“ und eine Jahresübersicht, sortiert wie die Steuererklärung (Werbungskosten, Vorsorge, Handwerker, Krankheitskosten).','Bei Versicherungen unter Fixkosten schlägt die App die passende Steuer-Art vor.'],'2.5.0':['Schnelleingabe im Monat und unter „Beleg“: „Kaffee 3,50“ eintippen, fertig. Unbekanntes fragt die App einmal nach.','Planen aufgeräumt: Einnahmen, Fixkosten, Verträge und Sparziele zum Aufklappen, „+ Neu“ gleich oben.','Monat und Mehr kompakter: Details erst beim Antippen.','Kategorien: Name und Farbe änderbar, 24 Farben zur Auswahl.','Kurzbefehl „Schnelleingabe“: lange auf das App-Symbol drücken.'],'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
 let newList=null;
 function computeNew(){
   const seen=state.prefs.seenVersion;
@@ -642,14 +660,18 @@ function vMonat(){
   const hasEx=state.receipts.some(r=>r.example)||state.fixed.some(f=>f.example)||state.goals.some(g=>g.example);
   let h='';
   if(ui.flash) h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;
+  h+=vQuick();
   h+=whatsNew();
   const yd=yearDue();
   if(yd&&!(state.yearExport[yd]&&state.yearExport[yd].done)&&!ui.yearHide) h+=`<div class="note"><b>Jahresabschluss ${yd}:</b> Lade jetzt deinen Jahresexport herunter, mit Jahres-CSV, Steuerliste und Backup.<div class="row" style="margin-top:8px"><button class="primary" data-act="year-go" data-y="${yd}">Zum Jahresexport</button><button class="ghost" data-act="year-later">Später</button></div></div>`;
   const openInv=state.receipts.filter(r=>r.open).sort((a,b)=>(a.due||'9').localeCompare(b.due||'9'));
-  if(openInv.length) h+=`<div class="note ${openInv.some(r=>dueCls(r.due)==='due')?'bad':'warn'}" role="status"><b>Offene Rechnungen:</b>
-    <div class="openlist">${openInv.slice(0,5).map(r=>`<div><span>${esc(r.merchant||'Rechnung')} · <b class="num">${fmt(rTotal(r))}</b> · ${r.due?fmtD(r.due)+', ':''}${dueText(r.due)}</span><button data-act="paid" data-id="${r.id}">Bezahlt</button></div>`).join('')}</div>${openInv.length>5?`<p class="small" style="margin:6px 0 0">und ${openInv.length-5} weitere</p>`:''}</div>`;
+  if(openInv.length){const op=ui.monOpen==='inv',first=openInv[0];
+    h+=`<div class="note ${openInv.some(r=>dueCls(r.due)==='due')?'bad':'warn'} mini"><button class="mini-h" data-act="mon-open" data-sec="inv" aria-expanded="${op}"><span><b>${openInv.length===1?'1 offene Rechnung':openInv.length+' offene Rechnungen'}</b> · ${esc(first.merchant||'Rechnung')} ${dueText(first.due)}</span><span class="chev" aria-hidden="true">›</span></button>
+    ${op?`<div class="openlist">${openInv.map(r=>`<div><span>${esc(r.merchant||'Rechnung')} · <b class="num">${fmt(rTotal(r))}</b> · ${r.due?fmtD(r.due)+', ':''}${dueText(r.due)}</span><button data-act="paid" data-id="${r.id}">Bezahlt</button></div>`).join('')}</div>`:''}</div>`}
   const due=contracts().filter(x=>x.c.days<=42);
-  if(due.length) h+=`<div class="note ${due.some(x=>x.c.days<=14)?'bad':'warn'}" role="status"><b>Kündigungsfrist:</b> ${due.map(({f,c})=>`${esc(f.name)} bis ${fmtD(c.deadline)} (${deadlineText(c)})`).join(' · ')}<div style="margin-top:6px"><a href="#fixkosten">Verträge ansehen</a></div></div>`;
+  if(due.length){const op=ui.monOpen==='kuend',first=due[0];
+    h+=`<div class="note ${due.some(x=>x.c.days<=14)?'bad':'warn'} mini"><button class="mini-h" data-act="mon-open" data-sec="kuend" aria-expanded="${op}"><span><b>Kündigungsfrist</b> · ${esc(first.f.name)} bis ${fmtD(first.c.deadline)}${due.length>1?` und ${due.length-1} weitere`:''}</span><span class="chev" aria-hidden="true">›</span></button>
+    ${op?`<div class="openlist">${due.map(({f,c})=>`<div><span>${esc(f.name)} · bis ${fmtD(c.deadline)} (${deadlineText(c)})</span></div>`).join('')}<div><button data-act="plan-go" data-sec="vertraege">Verträge ansehen</button></div></div>`:''}</div>`}
   if(hasEx) h+=`<div class="note warn"><b>Das sind Beispieldaten.</b> Sie zeigen, wie die App gefüllt aussieht.<div class="row" style="margin-top:8px"><button data-act="remove-examples">Beispieldaten entfernen</button></div></div>`;
   if(state.useBudgets){
     const warn=cats.filter(([id,v])=>{const b=+state.budgets[id]||0;return b>0&&v>=b*.8});
@@ -677,13 +699,15 @@ function vMonat(){
       if(free<-0.004) h+=`<div class="note bad">Diesen Monat gehen ${fmt(-free)} mehr raus, als reinkommt.</div>`;
     }
   }
-  if(state.goals.length){
-    h+=`<h2>Sparziele</h2><div class="bars">${state.goals.map(g=>{const i=goalInfo(g);return `<div class="bar" style="--c:var(--ok)"><span class="lbl">${esc(g.name)}${i.done?'<small>erreicht</small>':''}</span><span class="num">${fmt(i.bal)}${i.target?` / ${fmt(i.target)}`:''}</span>${i.target?`<div class="track"><i style="width:${i.pct}%"></i></div>`:''}</div>`}).join('')}</div>
-    <p class="small" style="margin-top:8px"><a href="#fixkosten">Sparziele verwalten</a></p>`;
+  if(state.goals.length){const op=ui.monOpen==='goals',tot=state.goals.reduce((a,g)=>a+goalBalance(g),0),tg=state.goals.reduce((a,g)=>a+(+g.target||0),0);
+    h+=`<div class="acc" style="margin-top:22px">${accHead('mgoals',op,'Sparziele',fmt(tot),`${state.goals.length===1?'1 Ziel':state.goals.length+' Ziele'}${tg?` · Ziel ${fmt(tg)}`:''}`,'mon-goals')}
+    ${op?`<div class="acc-p"><div class="bars">${state.goals.map(g=>{const i=goalInfo(g);return `<div class="bar" style="--c:var(--ok)"><span class="lbl">${esc(g.name)}${i.done?'<small>erreicht</small>':''}</span><span class="num">${fmt(i.bal)}${i.target?` / ${fmt(i.target)}`:''}</span>${i.target?`<div class="track"><i style="width:${i.pct}%"></i></div>`:''}</div>`}).join('')}</div>
+    <button class="ghost" data-act="plan-go" data-sec="sparziele" style="margin-top:6px">Sparziele verwalten</button></div>`:''}</div>`;
   }
   h+=`<h2>Belege im ${MONTHS[+ym.slice(5)-1]}</h2>`;
-  h+=rs.length?`<div class="list">${rs.map(receiptRow).join('')}</div>`
-    :`<div class="list"><div class="empty">Keine Belege. Unter <a href="#beleg">Beleg</a> fotografierst du einen Bon oder fügst seinen Text ein.</div></div>`;
+  const LIM=5,shown=ui.showAll?rs:rs.slice(0,LIM);
+  h+=rs.length?`<div class="list">${shown.map(receiptRow).join('')}</div>${rs.length>LIM?`<button class="ghost" data-act="show-all" style="margin-top:6px">${ui.showAll?'Weniger anzeigen':`Alle ${rs.length} Belege anzeigen`}</button>`:''}`
+    :`<div class="list"><div class="empty">Noch keine Belege. Tippe oben z. B. „Kaffee 3,50“ ein oder fotografiere unter <a href="#beleg">Beleg</a> einen Bon.</div></div>`;
   h+=`<p class="muted small" style="margin-top:14px">Letzte Sicherung: ${state.lastBackup?new Date(state.lastBackup).toLocaleDateString('de-DE'):'noch keine'} · <a href="#mehr">Backup unter Mehr</a></p>`;
   return h;
 }
@@ -721,23 +745,88 @@ function vTemplates(){
     <div class="chips">${state.templates.map(t=>`<button class="tpl" data-act="tpl-use" data-id="${t.id}"><span>${esc(t.name)}</span><span class="num">${fmt(tplTotal(t))}</span></button>`).join('')}</div></div>`;
 }
 
+/* Schnelleingabe: „Kaffee 3,50“ */
+function parseQuick(t){
+  t=String(t||'').trim().replace(/\s+/g,' ');
+  let m=t.match(/^(.*\S)\s+(-?\d{1,5}(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)\s*(?:€|eur|euro)?$/i);
+  let name,amt;
+  if(m){name=m[1];amt=m[2]}
+  else{m=t.match(/^(\d{1,5}(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)\s*(?:€|eur|euro)?\s+(.+)$/i);if(m){amt=m[1];name=m[2]}}
+  if(!m)return null;
+  name=name.replace(/\s*(€|eur|euro|für|fuer)$/i,'').trim();
+  const a=toNum(amt);
+  if(!(a>0)||letters(name)<2)return null;
+  return {name:name.slice(0,60),amount:r2(a)};
+}
+function vQuick(){
+  const q=ui.quickAsk,d=ui.quickDone;
+  let h=`<form class="quick" id="quick-form" autocomplete="off"><label class="sr" for="quick">Schnelleingabe</label>
+    <input id="quick" enterkeyhint="done" placeholder="Schnelleingabe, z. B. Kaffee 3,50" value="${esc(ui.quickText||'')}" autocapitalize="sentences">
+    <button class="primary" type="submit" aria-label="Ausgabe speichern">+</button></form>`;
+  if(ui.quickErr) h+=`<p class="err" role="alert" style="margin:6px 2px 0">${esc(ui.quickErr)}</p>`;
+  if(q) h+=`<div class="quickask" role="group" aria-label="Kategorie wählen"><p style="margin:0"><b>Wohin gehört „${esc(q.name)}“?</b> <span class="num">${fmt(q.amount)}</span></p>
+    <div class="chips">${state.categories.map(c=>`<button class="catchip" data-act="quick-cat" data-c="${c.id}"><i class="dot" style="--c:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
+    <div class="row"><button class="ghost" data-act="quick-cancel">Abbrechen</button><span class="muted small">Die App merkt sich deine Wahl.</span></div></div>`;
+  else if(d) h+=`<div class="quickdone" role="status"><span>Gespeichert: ${esc(d.name)} <b class="num">${fmt(d.amount)}</b> · ${esc(cat(d.cat).name)}</span><button class="ghost" data-act="quick-undo">Rückgängig</button></div>`;
+  return `<div class="quickwrap">${h}</div>`;
+}
+let quickTimer=null;
+function saveQuick(name,amount,c){
+  const rec={id:uid(),date:today(),merchant:name,quick:true,items:[{name,amount,cat:c}]};
+  state.receipts.push(rec);
+  const k=normKey(name);if(k.length>=3)state.rules.products[k]=c;
+  persist();
+  ui.quickAsk=null;ui.quickText='';ui.quickErr='';ui.quickDone={id:rec.id,name,amount,cat:c};
+  if(ui.tab==='monat'&&ui.ym!==thisYM())ui.ym=thisYM();
+  clearTimeout(quickTimer);quickTimer=setTimeout(()=>{if(ui.quickDone&&ui.quickDone.id===rec.id){ui.quickDone=null;if(!document.activeElement||document.activeElement.id!=='quick')render()}},8000);
+  render();const n=document.getElementById('quick');if(n)n.focus({preventScroll:true});
+}
+function submitQuick(){
+  const t=val('quick');ui.quickText=t;
+  if(!t.trim()){ui.quickErr='';return}
+  const p=parseQuick(t);
+  if(!p){ui.quickErr='Schreib zuerst, was es war, und dann den Betrag, z. B. „Kaffee 3,50“.';ui.quickDone=null;render();const n=document.getElementById('quick');if(n)n.focus();return}
+  const c=classify(p.name,{cat:null,single:false});
+  if(c.flag||!c.cat){ui.quickAsk=p;ui.quickDone=null;ui.quickErr='';render();return}
+  saveQuick(p.name,p.amount,c.cat);
+}
+
+/* Mehrere Belege nacheinander */
+function qBar(){
+  if(!(ui.qTotal>1))return '';const cur=ui.qTotal-(ui.queue?ui.queue.length:0);
+  return `<div class="qbar" role="status"><span><b>Beleg ${cur} von ${ui.qTotal}</b>${ui.qSaved?` · ${ui.qSaved} gespeichert`:''}</span>${ui.queue&&ui.queue.length?'<button class="ghost" data-act="queue-stop">Restliche überspringen</button>':''}</div>`;
+}
+function startQueue(files){
+  files=files.filter(Boolean);if(!files.length)return;
+  ui.queue=files.slice(1);ui.qTotal=files.length;ui.qSaved=0;ui.flash='';
+  runOCR(files[0]);
+}
+function queueNext(){
+  if(ui.queue&&ui.queue.length){runOCR(ui.queue.shift());return true}
+  const n=ui.qSaved,tot=ui.qTotal;ui.queue=null;ui.qTotal=0;ui.qSaved=0;
+  if(tot>1){ui.draft=null;const msg=`${n} von ${tot} Belegen gespeichert.`;if(location.hash!=='#monat'){ui.flashNext=msg;location.hash='#monat'}else{ui.flash=msg;render()}return true}
+  return false;
+}
+
 function vBeleg(){
   const d=ui.draft;
-  if(ui.ocr) return `<h2>Bon wird gelesen</h2><div class="drop"><b id="ocr-label">${esc(ui.ocr.label)}</b><div class="progress"><i id="ocr-bar" style="width:${Math.round((ui.ocr.p||0)*100)}%"></i></div>
+  if(ui.ocr) return `<h2>Bon wird gelesen</h2>${qBar()}<div class="drop"><b id="ocr-label">${esc(ui.ocr.label)}</b><div class="progress"><i id="ocr-bar" style="width:${Math.round((ui.ocr.p||0)*100)}%"></i></div>
     <p class="muted small" style="margin:0">Die Texterkennung läuft auf deinem Handy. Beim ersten Mal lädt sie einmalig die deutschen Sprachdaten (einige MB). Für ein sicheres Ergebnis liest sie den Bon bei Bedarf zweimal.</p></div>`;
   if(!d){
     return `${ui.flash?`<div class="flash" role="status">${esc(ui.flash)}</div>`:''}
     <h2>Neuer Beleg</h2>
+    ${vQuick()}
     ${vTemplates()}
-    <div class="drop${ui.action==='photo'?' hot':''}"><button id="photo-btn" class="primary" data-act="photo" style="justify-content:center">Foto, Screenshot oder PDF wählen</button>
+    <div class="drop${ui.action==='photo'?' hot':''}"><button id="photo-btn" class="primary" data-act="photo" style="justify-content:center">Fotos, Screenshots oder PDFs wählen</button>
       ${ui.action==='photo'?'<p class="small" style="margin:0;font-weight:600">Tippe auf den Knopf, dann „Kamera“ oder ein Bild aus der Galerie wählen.</p>':''}
-      <p class="muted small" style="margin:0">Tipp: Fotografiere den Bon formatfüllend, gerade und gut beleuchtet. Fotos und PDF-Rechnungen kannst du auch aus Galerie oder Mail über „Teilen“ → Kassensturz schicken.</p></div>
+      <p class="muted small" style="margin:0">Du kannst mehrere auf einmal auswählen, die App arbeitet sie nacheinander ab. Fotografiere Bons formatfüllend, gerade und gut beleuchtet. Fotos und PDF-Rechnungen kannst du auch aus Galerie oder Mail über „Teilen“ → Kassensturz schicken.</p></div>
     <details class="note"><summary><b>Erkennung klappt nicht gut? Text selbst kopieren</b></summary>
       <ul class="steps"><li>Foto in Google Fotos öffnen, „Lens“ antippen, „Text“ wählen, „Alles auswählen“ und kopieren, dann unten einfügen.</li>
       <li>Bei Online-Bestellungen den Text der Bestellbestätigung markieren und kopieren.</li></ul></details>
     <label class="f" for="bon-text">Text des Belegs
       <textarea id="bon-text" rows="8" placeholder="REWE Markt GmbH&#10;BIO BANANEN   1,78 B&#10;…&#10;SUMME   EUR   12,92">${esc(ui.paste)}</textarea></label>
     ${ui.err?`<p class="err" role="alert">${esc(ui.err)}</p>`:''}
+    ${ui.err&&ui.queue&&ui.queue.length?`<div class="row" style="margin:6px 0 10px"><button class="primary" data-act="queue-next">Weiter mit dem nächsten Beleg</button><button class="ghost" data-act="queue-stop">Restliche überspringen</button></div>`:''}
     <div class="row" style="margin-top:10px"><button class="primary" data-act="parse">Text auswerten</button>
       <button data-act="sample">Beispielbon</button><button class="ghost" data-act="manual">Ohne Bon eintragen</button></div>`;
   }
@@ -748,7 +837,7 @@ function vBeleg(){
   const cats=[...new Set(d.items.map(i=>i.cat).filter(Boolean))];
   const mk=normKey(d.merchant);
   const anySugg=d.items.some(i=>!i.cat&&i.suggest);
-  let h=`<h2>${d.refund?(d.id?'Retoure bearbeiten':'Retoure erfassen'):(d.id?'Beleg bearbeiten':'Beleg prüfen')}</h2>`;
+  let h=`<h2>${d.refund?(d.id?'Retoure bearbeiten':'Retoure erfassen'):(d.id?'Beleg bearbeiten':'Beleg prüfen')}</h2>${d.id?'':qBar()}`;
   if(d.from) h+=`<div class="note">Vorausgefüllt aus ${esc(d.from)}. Das Datum ist heute. Prüfe die Beträge und speichere.</div>`;
   if(d.collapsed) h+=`<div class="note">Die Einzelpositionen ließen sich nicht sicher lesen. Weil hier alles in eine Kategorie gehört, habe ich den Gesamtbetrag übernommen.<div class="row" style="margin-top:8px"><button data-act="show-items">Erkannte Einzelpositionen anzeigen</button></div></div>`;
   if(d.gross) h+=`<div class="note">Netto-Rechnung erkannt: ${fmt(d.gross.vat)} MwSt. sind anteilig auf die Positionen verteilt.</div>`;
@@ -768,8 +857,8 @@ function vBeleg(){
       <button type="button" class="icon ghost" data-act="del-row" data-i="${i}" aria-label="Position ${i+1} entfernen">×</button>
       <div class="catline"><select id="c-${i}" data-row="${i}" data-k="cat" aria-label="Kategorie Position ${i+1}">${catOpts(it.cat,'– Kategorie wählen –')}</select>
       ${!it.cat?(it.suggest?`<button type="button" class="ghost" data-act="accept" data-i="${i}">Vorschlag: ${esc(cat(it.suggest).name)}</button>`:`<span class="why">Unbekannt</span>`)
-        :`<span class="src">${it.src?esc(it.src):'von dir gewählt'}</span>`}</div>
-      <select id="t-${i}" class="taxsel${it.tax?' on':''}" data-row="${i}" data-k="tax" aria-label="Steuerlich absetzbar, Position ${i+1}">${taxOpts(it.tax)}</select></div>`).join('')}</div>
+        :`<span class="src">${it.src?esc(it.src):'von dir gewählt'}</span>`}${it.tax||it.taxShow?'':`<button type="button" class="taxbtn" data-act="tax-show" data-i="${i}" aria-label="Position ${i+1} als steuerlich absetzbar markieren" title="Steuerlich absetzbar">§</button>`}</div>
+      ${it.tax||it.taxShow?`<select id="t-${i}" class="taxsel${it.tax?' on':''}" data-row="${i}" data-k="tax" aria-label="Steuerlich absetzbar, Position ${i+1}">${taxOpts(it.tax)}</select>`:''}</div>`).join('')}</div>
     <div class="row" style="margin-top:8px"><button type="button" class="ghost" data-act="add-row">+ Position</button>
       ${tot!=null&&Math.abs(diff)>=0.01?`<button type="button" class="ghost" data-act="add-diff">Differenz als Position</button><button type="button" class="ghost" data-act="total-only">Nur Gesamtbetrag verwenden</button>`:''}</div>
     <div class="sumline"><span>Summe Positionen</span><b id="sum">${fmt(d.refund?-sum:sum)}</b></div>
@@ -789,33 +878,86 @@ function diffText(tot,sum){
   return Math.abs(diff)>=0.01?`Der Bon nennt ${fmt(tot)}, ${diff>0?'es fehlen':'zu viel sind'} ${fmt(Math.abs(diff))}. Prüfe, ob eine Position fehlt.`:'';
 }
 
+/* Aufklappbare Bereiche: immer nur einer offen */
+function accHead(sec,open,title,value,sub,act){
+  return `<button class="acc-h${open?' open':''}" id="${sec}" data-act="${act}" data-sec="${sec}" aria-expanded="${open}">
+    <span class="acc-t"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</span>${value!=null?`<span class="num acc-v">${value}</span>`:''}<span class="chev" aria-hidden="true">›</span></button>`;
+}
+const PER={0:'einmalig',1:'/ Monat',3:'/ Quartal',6:'/ Halbjahr',12:'/ Jahr'};
 function fixedRow(f){
-  const act=activeIn(f,ui.ym);
+  const act=activeIn(f,ui.ym),open=ui.fxOpen===f.id;
   let when=INTERVALS[f.interval]||'monatlich';
   if(f.interval===0) when+=f.start?` im ${ymLabel(f.start)}`:'';
   else{if(f.start)when+=` ab ${ymShort(f.start)}`;if(f.end)when+=` bis ${ymShort(f.end)}`}
   const status=!act?(f.interval===0?'':f.start&&f.start>ui.ym?'<span class="tag off">startet später</span>':'<span class="tag off">beendet</span>'):'';
   const c=f.kind!=='in'&&contractInfo(f);
-  return `<div class="frow${act?'':' inactive'}">
-    <span class="t">${f.kind==='out'?`<i class="dot" style="--c:${cat(f.cat).color}"></i>`:''}${esc(f.name)}${f.example?' <span class="tag ex">Beispiel</span>':''}${f.tax?' <span class="tag tax">§ absetzbar</span>':''}${status}</span>
-    <span class="num">${fmt(f.amount)}</span>
-    <span class="s">${f.kind==='out'?esc(cat(f.cat).name)+' · ':''}${when}${f.interval>1?` · ${fmt(shareOf(f))} / Monat`:''}${c?` · kündbar bis ${fmtD(c.deadline)}`:''}</span>
-    <span class="acts"><button class="ghost" data-act="fedit" data-id="${f.id}">Bearbeiten</button><button class="ghost danger" data-act="fdel" data-id="${f.id}">Löschen</button></span></div>`;
+  return `<div class="frow2${act?'':' inactive'}"><button class="fr-h" data-act="fx-toggle" data-id="${f.id}" aria-expanded="${open}">
+    <span class="t">${f.kind==='out'?`<i class="dot" style="--c:${cat(f.cat).color}"></i>`:''}<span class="nm">${esc(f.name)}</span>${f.example?' <span class="tag ex">Beispiel</span>':''}${status}</span>
+    <span class="num">${fmt(f.amount)} <small class="muted">${PER[f.interval]||''}</small></span></button>
+    ${open?`<div class="fr-d"><span class="s">${f.kind==='out'?esc(cat(f.cat).name)+' · ':''}${when}${f.interval>1?` · ${fmt(shareOf(f))} pro Monat`:''}${f.tax?' · § '+esc(TAXKINDS[f.tax]||''):''}${c?` · kündbar bis ${fmtD(c.deadline)}`:''}</span>
+      <span class="row"><button data-act="fedit" data-id="${f.id}">Bearbeiten</button><button class="ghost danger" data-act="fdel" data-id="${f.id}">Löschen</button></span></div>`:''}</div>`;
+}
+function fxFormHtml(kind,e){
+  const hasC=e&&e.contractEnd;
+  return `<form class="form inpanel" id="fixed-form" autocomplete="off">
+    <b class="full">${e?'Eintrag bearbeiten':kind==='in'?'Neue Einnahme':'Neue Fixkosten'}</b>
+    <input type="hidden" id="fx-kind" value="${kind}">
+    <label class="f full" for="fx-name">Bezeichnung<input id="fx-name" value="${esc(e?e.name:'')}" placeholder="${kind==='in'?'z. B. Gehalt':'z. B. Streaming-Abo'}"></label>
+    <label class="f" for="fx-amount">Betrag<input id="fx-amount" inputmode="decimal" value="${e?fmtIn(e.amount):''}" placeholder="12,99" style="font-family:var(--f-mono)"></label>
+    <label class="f" for="fx-int">Rhythmus<select id="fx-int">${[1,3,6,12,0].map(k=>`<option value="${k}"${(e?e.interval:1)===k?' selected':''}>${INTERVALS[k]}</option>`).join('')}</select></label>
+    ${kind==='in'?'':`<label class="f full" for="fx-cat">Kategorie<select id="fx-cat">${catOpts(e&&e.cat?e.cat:'vertraege')}</select></label>`}
+    <details class="full"${e&&(e.start||e.end)?' open':''}><summary class="small" style="cursor:pointer;font-weight:600">Zeitraum (optional)</summary>
+      <div class="form" style="margin:8px 0 0;padding:0;border:0">
+        <label class="f" for="fx-start">Ab Monat<input id="fx-start" type="month" value="${esc(e?e.start:'')}"></label>
+        <label class="f" for="fx-end">Bis Monat<input id="fx-end" type="month" value="${esc(e?e.end:'')}"></label>
+        <p class="muted small full" style="margin:0">Ohne „Ab Monat“ zählt der Eintrag in allen Monaten. „Einmalig“ zählt nur im gewählten Monat.</p></div></details>
+    ${kind==='in'?'':`<details class="full" id="fx-taxbox"${e&&e.tax?' open':''}><summary class="small" style="cursor:pointer;font-weight:600">§ Steuerlich absetzbar (optional)</summary>
+      <label class="f" for="fx-tax" style="margin-top:8px">Art<select id="fx-tax">${taxOpts(e?e.tax:'')}</select></label>
+      <p id="fx-taxhint" class="small" style="margin:6px 0 0;color:var(--accent)"></p></details>
+    <details class="full"${hasC?' open':''}><summary class="small" style="cursor:pointer;font-weight:600">Vertrag & Kündigung (optional)</summary>
+      <div class="form" style="margin:8px 0 0;padding:0;border:0">
+        <label class="f full" for="fx-cend">Mindestlaufzeit endet am<input id="fx-cend" type="date" value="${esc(e&&e.contractEnd||'')}"></label>
+        <label class="f" for="fx-nval">Kündigungsfrist<input id="fx-nval" inputmode="numeric" value="${e&&e.noticeVal!=null?esc(e.noticeVal):'1'}" style="font-family:var(--f-mono)"></label>
+        <label class="f" for="fx-nunit">Einheit<select id="fx-nunit"><option value="monate"${!e||e.noticeUnit!=='wochen'?' selected':''}>Monate</option><option value="wochen"${e&&e.noticeUnit==='wochen'?' selected':''}>Wochen</option></select></label>
+        <label class="f full" for="fx-renew">Danach verlängert um<select id="fx-renew">${[1,3,6,12,24].map(k=>`<option value="${k}"${(e&&+e.renew||1)===k?' selected':''}>${k===1?'1 Monat (monatlich kündbar)':k+' Monate'}</option>`).join('')}</select></label>
+        <p class="muted small full" style="margin:0">Bei vielen Verträgen ab März 2022 gilt nach der Mindestlaufzeit: monatlich kündbar. Im Zweifel im Vertrag nachsehen.</p></div></details>`}
+    ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
+    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':'Hinzufügen'}</button><button type="button" data-act="fcancel">Abbrechen</button></div>
+  </form>`;
+}
+function fxPanel(kind,list){
+  const e=ui.fixedEdit&&state.fixed.find(f=>f.id===ui.fixedEdit);
+  const formHere=ui.fxForm&&((e&&e.kind===kind)||(!e&&ui.fxKind===kind));
+  let h=formHere?fxFormHtml(kind,e):`<button class="addbtn" data-act="fx-new" data-kind="${kind}">+ ${kind==='in'?'Neue Einnahme':'Neue Fixkosten'}</button>`;
+  h+=list.length?`<div class="sublist">${list.map(fixedRow).join('')}</div>`
+    :`<p class="muted small" style="margin:8px 2px 0">${kind==='in'?'Noch keine Einnahmen, z. B. dein Gehalt.':'Noch keine Fixkosten, z. B. Miete, Strom oder Abos.'}</p>`;
+  return h;
 }
 function deadlineText(c){return c.days<=0?'heute letzter Tag':c.days===1?'noch 1 Tag':`noch ${c.days} Tage`}
 function vContracts(){
   const cs=contracts();
-  let h=`<h3 id="vertraege">Verträge & Kündigungsfristen</h3>`;
-  if(!cs.length) return h+`<div class="list"><div class="empty">Noch keine Verträge mit Laufzeit. Trage bei einer Fixkosten-Position unter „Vertrag & Kündigung“ die Laufzeit ein.</div></div>`;
-  return h+`<div class="list">${cs.map(({f,c})=>`<div class="frow"><span class="t">${esc(f.name)}${c.days<=14?' <span class="tag due">bald kündigen</span>':c.days<=42?' <span class="tag soon">Frist naht</span>':''}</span>
+  if(!cs.length) return `<p class="muted small" style="margin:4px 2px">Noch keine Verträge mit Laufzeit. Öffne unter „Fixkosten“ einen Eintrag, tippe „Bearbeiten“ und dann „Vertrag & Kündigung“.</p>`;
+  return `<div class="sublist">${cs.map(({f,c})=>`<div class="frow"><span class="t">${esc(f.name)}${c.days<=14?' <span class="tag due">bald kündigen</span>':c.days<=42?' <span class="tag soon">Frist naht</span>':''}</span>
     <span class="num">${fmtD(c.deadline)}</span>
     <span class="s">letzter Kündigungstag · ${deadlineText(c)} · läuft sonst bis ${fmtD(c.end)}, dann ${(+f.renew||1)===1?'monatlich weiter':`+${f.renew} Monate`}</span></div>`).join('')}</div>`;
 }
+function goalForm(e){
+  return `<form class="form inpanel" id="goal-form" autocomplete="off">
+    <b class="full">${e?'Sparziel bearbeiten':'Neues Sparziel'}</b>
+    <label class="f full" for="g-name">Name<input id="g-name" value="${esc(e?e.name:'')}" placeholder="z. B. Notgroschen"></label>
+    <label class="f" for="g-target">Zielbetrag (optional)<input id="g-target" inputmode="decimal" value="${e&&e.target?fmtIn(e.target):''}" placeholder="1.500,00" style="font-family:var(--f-mono)"></label>
+    <label class="f" for="g-due">Ziel bis (optional)<input id="g-due" type="month" value="${esc(e?e.due||'':'')}"></label>
+    <label class="f" for="g-rate">Sparrate pro Monat<input id="g-rate" inputmode="decimal" value="${e&&rateFor(e,thisYM())?fmtIn(rateFor(e,thisYM())):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
+    ${e?'':`<label class="f" for="g-start">Startguthaben (optional)<input id="g-start" inputmode="decimal" placeholder="0,00" style="font-family:var(--f-mono)"></label>`}
+    <p class="muted small full" style="margin:0">Die Sparrate zählt ab diesem Monat jeden Monat automatisch und verringert dein „Übrig“.</p>
+    ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
+    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':'Sparziel anlegen'}</button><button type="button" data-act="goal-cancel">Abbrechen</button></div></form>`;
+}
 function vGoals(){
-  const total=state.goals.reduce((a,g)=>a+goalBalance(g),0);
-  let h=`<h3 id="sparziele">Sparziele</h3>
-  <div class="fig" style="margin-bottom:10px;grid-template-columns:1fr auto;align-items:baseline"><span>Sparkonto gesamt</span><b>${fmt(total)}</b></div>`;
-  h+=state.goals.length?`<div class="list">${state.goals.map(g=>{const i=goalInfo(g);
+  const e=ui.goalEdit&&state.goals.find(g=>g.id===ui.goalEdit);
+  let h=(e||ui.goalNew)?goalForm(e):`<button class="addbtn" data-act="goal-new">+ Neues Sparziel</button>`;
+  if(!state.goals.length) return h+`<p class="muted small" style="margin:8px 2px 0">Noch kein Sparziel, z. B. „Notgroschen“ oder „Urlaub“.</p>`;
+  h+=`<div class="sublist">${state.goals.map(g=>{const i=goalInfo(g),open=ui.goalOpen===g.id;
     const deps=state.deposits.filter(d=>d.goalId===g.id).sort((a,b)=>b.date.localeCompare(a.date));
     const lines=[];
     if(i.rate>0)lines.push(`Sparrate ${fmt(i.rate)} / Monat`);else lines.push('keine Sparrate');
@@ -823,9 +965,10 @@ function vGoals(){
     else{if(i.need!=null)lines.push(`für ${ymShort(g.due)} nötig: ${fmt(i.need)} / Monat`);else if(g.due)lines.push(`Ziel ${ymShort(g.due)}`);
       if(i.eta)lines.push(`mit aktueller Rate erreicht im ${ymLabel(i.eta)}`)}
     const df=ui.depositFor===g.id;
-    return `<div class="goal"><div class="ghead"><b>${esc(g.name)}</b>${g.example?' <span class="tag ex">Beispiel</span>':''}<span class="num">${fmt(i.bal)}${i.target?` <span class="muted">von ${fmt(i.target)}</span>`:''}</span></div>
+    return `<div class="goal"><button class="fr-h" data-act="goal-toggle" data-id="${g.id}" aria-expanded="${open}"><span class="t"><span class="nm">${esc(g.name)}</span>${g.example?' <span class="tag ex">Beispiel</span>':''}${i.done?' <span class="tag ret">erreicht</span>':''}</span>
+      <span class="num">${fmt(i.bal)}${i.target?` <small class="muted">/ ${fmt(i.target)}</small>`:''}</span></button>
       ${i.target?`<div class="track gtrack"><i style="width:${i.pct}%"></i></div>`:''}
-      <p class="small muted" style="margin:0">${lines.join(' · ')}</p>
+      ${open?`<p class="small muted" style="margin:0">${lines.join(' · ')}</p>
       ${i.done&&i.rate>0?`<div class="row"><button data-act="goal-stop" data-id="${g.id}">Sparrate ab nächstem Monat beenden</button></div>`:''}
       ${df?`<form class="row" id="deposit-form" data-goal="${g.id}" autocomplete="off" style="margin-top:4px">
         <input id="dep-amount" inputmode="decimal" placeholder="Betrag" style="flex:1 1 7em;width:auto;font-family:var(--f-mono)">
@@ -834,57 +977,28 @@ function vGoals(){
         ${ui.err?`<p class="err" role="alert" style="flex-basis:100%;margin:0">${esc(ui.err)}</p>`:''}</form>`
       :`<div class="row"><button class="ghost" data-act="dep" data-id="${g.id}" data-sign="1">+ Einzahlen</button><button class="ghost" data-act="dep" data-id="${g.id}" data-sign="-1">− Entnehmen</button><button class="ghost" data-act="goal-edit" data-id="${g.id}">Bearbeiten</button><button class="ghost danger" data-act="goal-del" data-id="${g.id}">Löschen</button></div>`}
       ${ui.confirmGoal===g.id?`<div class="note warn" style="margin:0">„${esc(g.name)}“ mit allen Einzahlungen löschen?<div class="row" style="margin-top:8px"><button class="danger" data-act="goal-del-yes" data-id="${g.id}">Ja, löschen</button><button data-act="goal-del-no">Abbrechen</button></div></div>`:''}
-      ${deps.length?`<details class="small"><summary class="muted" style="cursor:pointer">Einzahlungen (${deps.length})</summary><div class="lines" style="margin-top:6px">${deps.map(d=>`<div><span class="n"><span class="num muted">${fmtD(d.date)}</span> ${esc(d.note||(d.amount<0?'Entnahme':'Einzahlung'))}</span><span class="num">${fmt(d.amount)}</span><button class="icon ghost danger" data-act="dep-del" data-id="${d.id}" aria-label="Eintrag löschen">×</button></div>`).join('')}</div></details>`:''}
-    </div>`}).join('')}</div>`
-    :`<div class="list"><div class="empty">Noch kein Sparziel. Lege unten eins an, z. B. „Notgroschen“ oder „Urlaub“.</div></div>`;
-  const e=ui.goalEdit&&state.goals.find(g=>g.id===ui.goalEdit);
-  if(!e&&!ui.goalNew) return h+`<div class="row" style="margin-top:10px"><button data-act="goal-new">+ Neues Sparziel</button></div>`;
-  return h+`<form class="form" id="goal-form" autocomplete="off">
-    <label class="f full" for="g-name">Name<input id="g-name" value="${esc(e?e.name:'')}" placeholder="z. B. Notgroschen"></label>
-    <label class="f" for="g-target">Zielbetrag (optional)<input id="g-target" inputmode="decimal" value="${e&&e.target?fmtIn(e.target):''}" placeholder="1.500,00" style="font-family:var(--f-mono)"></label>
-    <label class="f" for="g-due">Ziel bis (optional)<input id="g-due" type="month" value="${esc(e?e.due||'':'')}"></label>
-    <label class="f" for="g-rate">Sparrate pro Monat<input id="g-rate" inputmode="decimal" value="${e&&rateFor(e,thisYM())?fmtIn(rateFor(e,thisYM())):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
-    ${e?'':`<label class="f" for="g-start">Startguthaben (optional)<input id="g-start" inputmode="decimal" placeholder="0,00" style="font-family:var(--f-mono)"></label>`}
-    <p class="muted small full" style="margin:0">Die Sparrate zählt ab diesem Monat jeden Monat automatisch und verringert dein „Übrig“. Eine geänderte Rate gilt ab diesem Monat, frühere Monate bleiben unverändert.</p>
-    ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
-    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':'Sparziel anlegen'}</button><button type="button" data-act="goal-cancel">Abbrechen</button></div></form>`;
+      ${deps.length?`<details class="small"><summary class="muted" style="cursor:pointer">Einzahlungen (${deps.length})</summary><div class="lines" style="margin-top:6px">${deps.map(d=>`<div><span class="n"><span class="num muted">${fmtD(d.date)}</span> ${esc(d.note||(d.amount<0?'Entnahme':'Einzahlung'))}</span><span class="num">${fmt(d.amount)}</span><button class="icon ghost danger" data-act="dep-del" data-id="${d.id}" aria-label="Eintrag löschen">×</button></div>`).join('')}</div></details>`:''}`:''}
+    </div>`}).join('')}</div>`;
+  return h;
 }
 function vFixed(){
-  const st=monthStats(ui.ym);
+  const st=monthStats(ui.ym),o=ui.planOpen,mo=ymLabel(ui.ym);
   const ins=state.fixed.filter(f=>f.kind==='in').sort((a,b)=>shareOf(b)-shareOf(a));
   const outs=state.fixed.filter(f=>f.kind!=='in').sort((a,b)=>shareOf(b)-shareOf(a));
-  const e=ui.fixedEdit&&state.fixed.find(f=>f.id===ui.fixedEdit);
-  const kind=e?e.kind:ui.fixedKind;
-  const hasC=e&&e.contractEnd;
-  let h=`<h2>Planen</h2><p class="muted">Einnahmen, Fixkosten, Verträge und Sparziele. Jährliche Kosten rechnet die App auf den Monat um.</p>
-  <div class="figs"><div class="fig"><span>Einnahmen ${MSHORT[+ui.ym.slice(5)-1]}</span><b>${fmt(st.inc)}</b></div><div class="fig"><span>Fixkosten ${MSHORT[+ui.ym.slice(5)-1]}</span><b>${fmt(st.fixOut)}</b></div></div>
-  <nav class="row small" aria-label="Abschnitte" style="margin:6px 0 0"><a href="#planen-ein" data-act="jump" data-to="sec-ein">Einnahmen</a>·<a href="#planen-fix" data-act="jump" data-to="sec-fix">Fixkosten</a>·<a href="#planen-vertraege" data-act="jump" data-to="vertraege">Verträge</a>·<a href="#planen-sparen" data-act="jump" data-to="sparziele">Sparziele</a></nav>`;
-  h+=`<h3 id="sec-ein">Einnahmen</h3>`+(ins.length?`<div class="list">${ins.map(fixedRow).join('')}</div>`:`<div class="list"><div class="empty">Noch keine Einnahmen. Trage unten dein Gehalt oder andere Einnahmen ein.</div></div>`);
-  h+=`<h3 id="sec-fix">Fixkosten</h3>`+(outs.length?`<div class="list">${outs.map(fixedRow).join('')}</div>`:`<div class="list"><div class="empty">Noch keine Fixkosten. Trage unten Miete, Strom oder Abos ein.</div></div>`);
-  h+=`<h3 id="fx-head">${e?'Eintrag bearbeiten':'Neue Einnahme oder Fixkosten'}</h3>
-  <form class="form" id="fixed-form" autocomplete="off">
-    <label class="f" for="fx-kind">Art<select id="fx-kind"><option value="out"${kind!=='in'?' selected':''}>Ausgabe</option><option value="in"${kind==='in'?' selected':''}>Einnahme</option></select></label>
-    <label class="f" for="fx-int">Rhythmus<select id="fx-int">${[1,3,6,12,0].map(k=>`<option value="${k}"${(e?e.interval:1)===k?' selected':''}>${INTERVALS[k]}</option>`).join('')}</select></label>
-    <label class="f full" for="fx-name">Bezeichnung<input id="fx-name" value="${esc(e?e.name:'')}" placeholder="${kind==='in'?'z. B. Gehalt':'z. B. Streaming-Abo'}"></label>
-    <label class="f" for="fx-amount">Betrag<input id="fx-amount" inputmode="decimal" value="${e?fmtIn(e.amount):''}" placeholder="12,99" style="font-family:var(--f-mono)"></label>
-    <label class="f outonly" for="fx-cat"${kind==='in'?' hidden':''}>Kategorie<select id="fx-cat">${catOpts(e&&e.cat?e.cat:'vertraege')}</select></label>
-    <label class="f" for="fx-start">Ab Monat<input id="fx-start" type="month" value="${esc(e?e.start:'')}"></label>
-    <label class="f" for="fx-end">Bis Monat (optional)<input id="fx-end" type="month" value="${esc(e?e.end:'')}"></label>
-    <label class="f full outonly" for="fx-tax"${kind==='in'?' hidden':''}>Steuerlich absetzbar<select id="fx-tax">${taxOpts(e?e.tax:'')}</select></label>
-    <details class="full outonly"${kind==='in'?' hidden':''}${hasC?' open':''}><summary style="cursor:pointer;font-weight:600;font-size:.9rem">Vertrag & Kündigung (optional)</summary>
-      <div class="form" style="margin:8px 0 0;padding:0;border:0">
-        <label class="f full" for="fx-cend">Mindestlaufzeit endet am<input id="fx-cend" type="date" value="${esc(e&&e.contractEnd||'')}"></label>
-        <label class="f" for="fx-nval">Kündigungsfrist<input id="fx-nval" inputmode="numeric" value="${e&&e.noticeVal!=null?esc(e.noticeVal):'1'}" style="font-family:var(--f-mono)"></label>
-        <label class="f" for="fx-nunit">Einheit<select id="fx-nunit"><option value="monate"${!e||e.noticeUnit!=='wochen'?' selected':''}>Monate</option><option value="wochen"${e&&e.noticeUnit==='wochen'?' selected':''}>Wochen</option></select></label>
-        <label class="f full" for="fx-renew">Danach verlängert um<select id="fx-renew">${[1,3,6,12,24].map(k=>`<option value="${k}"${(e&&+e.renew||1)===k?' selected':''}>${k===1?'1 Monat (monatlich kündbar)':k+' Monate'}</option>`).join('')}</select></label>
-        <p class="muted small full" style="margin:0">Bei vielen Verträgen ab März 2022 gilt nach der Mindestlaufzeit: monatlich kündbar. Im Zweifel im Vertrag nachsehen.</p>
-      </div></details>
-    <p class="muted small full" style="margin:0">Ohne „Ab Monat“ zählt der Eintrag in allen Monaten. Bei „einmalig“ zählt er nur im gewählten Monat.</p>
-    ${ui.err&&!ui.goalEdit&&!ui.goalNew&&!ui.depositFor?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
-    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':'Hinzufügen'}</button>${e?'<button type="button" data-act="fcancel">Abbrechen</button>':''}</div>
-  </form>`;
-  h+=vContracts();
-  h+=vGoals();
+  const cs=contracts(),gTotal=state.goals.reduce((a,g)=>a+goalBalance(g),0),gRate=state.goals.reduce((a,g)=>a+rateFor(g,thisYM()),0);
+  const n=(k,one,many)=>`${k} ${k===1?one:many}`;
+  const rest=st.inc-st.fixOut;
+  let h=`<h2>Planen</h2><div class="acc">`;
+  h+=accHead('ein',o==='ein','Einnahmen',fmt(st.inc),n(ins.length,'Eintrag','Einträge'),'plan-open');
+  if(o==='ein')h+=`<div class="acc-p">${fxPanel('in',ins)}</div>`;
+  h+=accHead('fix',o==='fix','Fixkosten',fmt(st.fixOut),n(outs.length,'Eintrag','Einträge'),'plan-open');
+  if(o==='fix')h+=`<div class="acc-p">${fxPanel('out',outs)}</div>`;
+  h+=`<div class="acc-sum"><span>Bleibt nach Fixkosten</span><b class="num${rest<0?' minus':''}">${fmt(rest)}</b></div>`;
+  h+=accHead('vertraege',o==='vertraege','Verträge',null,cs.length?`${cs.length} · nächste Frist ${fmtD(cs[0].c.deadline)}`:'keine mit Kündigungsfrist','plan-open');
+  if(o==='vertraege')h+=`<div class="acc-p">${vContracts()}</div>`;
+  h+=accHead('sparziele',o==='sparziele','Sparziele',fmt(gTotal),state.goals.length?`${n(state.goals.length,'Ziel','Ziele')}${gRate?` · ${fmt(gRate)} / Monat`:''}`:'noch keins','plan-open');
+  if(o==='sparziele')h+=`<div class="acc-p">${vGoals()}</div>`;
+  h+=`</div><p class="muted small" style="margin-top:10px">Beträge für ${mo}. Jährliche Kosten sind auf den Monat umgerechnet.</p>`;
   return h;
 }
 function vVerlauf(){
@@ -943,30 +1057,47 @@ function prodList(){
     <button class="icon ghost danger" data-act="rdel" data-type="p" data-key="${esc(k)}" aria-label="Regel löschen">×</button></div>`).join('')}</div>`
     :`<div class="list"><div class="empty">${f?'Kein Treffer.':'Noch nichts gelernt. Speichere deinen ersten Beleg, dann erscheinen die Produkte hier.'}</div></div>`);
 }
+const PALETTE=['#2f9e6f','#5a9e3a','#4c7a34','#8a9a2b','#c9a227','#b08a2e','#e0891c','#e0662b','#d1513d','#a15c3a','#8a6e5c','#d6457a','#c2569b','#e06c9f','#a35fd6','#7b5dc9','#3c4f9c','#2a62c9','#3a8fd3','#69b3e7','#1aa3a3','#0e7c86','#5d6f8c','#8e95a3'];
+const freeColor=()=>PALETTE.find(c=>!state.categories.some(x=>x.color.toLowerCase()===c))||PALETTE[state.categories.length%PALETTE.length];
+const noH2=html=>html.replace(/^\s*<h2[^>]*>[\s\S]*?<\/h2>/,'');
+function catPanel(){
+  const e=ui.catEdit&&state.categories.find(c=>c.id===ui.catEdit);
+  let h=`<p class="muted small" style="margin:0 2px 8px">Tippe eine Kategorie an, um Namen oder Farbe zu ändern.</p>
+  <div class="chips">${state.categories.map(c=>`<button class="catchip${e&&e.id===c.id?' sel':''}" data-act="cat-edit" data-id="${c.id}" aria-pressed="${!!(e&&e.id===c.id)}"><i class="dot" style="--c:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>`;
+  if(e){const col=ui.catColor||e.color;
+    h+=`<div class="box catedit" style="margin-top:10px">
+      <label class="f" for="cat-ename">Name<input id="cat-ename" value="${esc(e.name)}" maxlength="30"></label>
+      <div class="f">Farbe<div class="swatches" role="radiogroup" aria-label="Farbe">${PALETTE.map(c=>`<button class="sw${c.toLowerCase()===col.toLowerCase()?' on':''}" style="--c:${c}" data-act="cat-color" data-col="${c}" role="radio" aria-checked="${c.toLowerCase()===col.toLowerCase()}" aria-label="Farbe ${c}"></button>`).join('')}</div></div>
+      ${ui.err?`<p class="err" role="alert" style="margin:0">${esc(ui.err)}</p>`:''}
+      <div class="row"><button class="primary" data-act="cat-save">Speichern</button><button data-act="cat-cancel">Abbrechen</button>${e.id!=='sonstiges'?`<button class="ghost danger" data-act="cdel" data-id="${e.id}">Löschen</button>`:''}</div>
+      ${ui.confirmCat===e.id?`<div class="note warn" style="margin:0">„${esc(e.name)}“ löschen? Alle Einträge und Regeln dieser Kategorie wandern zu „Sonstiges“.<div class="row" style="margin-top:8px"><button class="danger" data-act="cdel-yes">Ja, löschen</button><button data-act="cdel-no">Abbrechen</button></div></div>`:''}
+    </div>`}
+  h+=`<form class="row" id="cat-form" style="margin-top:12px" autocomplete="off"><input id="cat-name" placeholder="Neue Kategorie, z. B. Haustier" maxlength="30" style="flex:1 1 14em;width:auto"><button type="submit">Hinzufügen</button></form>`;
+  return h;
+}
 function vMehr(){
   const mers=Object.entries(state.rules.merchants).sort((a,b)=>a[0].localeCompare(b[0]));
+  const o=ui.moreOpen,sec=(id,title,sub,html)=>accHead(id,o===id,title,null,sub,'more-open')+(o===id?`<div class="acc-p">${html()}</div>`:'');
+  const tx=taxYear(ui.taxYear),nB=Object.values(state.budgets).filter(v=>+v>0).length;
+  const lb=state.lastBackup?Math.floor((Date.now()-state.lastBackup)/864e5):null;
   let h='';
   if(ui.flash) h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;
-  h+=vGuide();
   if(!ui.installed&&ui.installEvt) h+=`<div class="note"><b>Als App installieren</b><p class="small" style="margin:4px 0 8px">Dann startet Kassensturz vom Startbildschirm, ohne Browserleiste und auch offline.</p><button class="primary" data-act="install">App installieren</button></div>`;
-  h+=vTaxYear();
-  h+=vLockSettings();
-  h+=`<h2>Budgets</h2><div class="box"><label class="check"><input id="use-budgets" type="checkbox"${state.useBudgets?' checked':''}> Monatsbudgets verwenden</label>
-    ${state.useBudgets?`<p class="muted small" style="margin:0">Leer lassen = kein Budget. Ab 80 % warnt die App, über 100 % wird es rot.</p><div class="list">${state.categories.map(c=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) 8em"><span><i class="dot" style="--c:${c.color}"></i> ${esc(c.name)}</span><input id="bud-${c.id}" data-budget="${c.id}" inputmode="decimal" value="${+state.budgets[c.id]>0?fmtIn(state.budgets[c.id]):''}" placeholder="–" aria-label="Budget ${esc(c.name)}"></div>`).join('')}</div>`:''}</div>`;
-  h+=`<h2>Kategorien</h2><div class="chips">${state.categories.map(c=>`<span class="chip"><i class="dot" style="--c:${c.color}"></i>${esc(c.name)}${c.id!=='sonstiges'?`<button data-act="cdel" data-id="${c.id}" aria-label="${esc(c.name)} löschen">×</button>`:'<span style="width:6px"></span>'}</span>`).join('')}</div>
-  ${ui.confirmCat?`<div class="note warn" style="margin-top:10px">„${esc(cat(ui.confirmCat).name)}“ löschen? Alle Einträge und Regeln dieser Kategorie wandern zu „Sonstiges“.<div class="row" style="margin-top:8px"><button class="danger" data-act="cdel-yes">Ja, löschen</button><button data-act="cdel-no">Abbrechen</button></div></div>`:''}
-  <form class="row" id="cat-form" style="margin-top:10px" autocomplete="off"><input id="cat-name" placeholder="Neue Kategorie, z. B. Haustier" style="flex:1 1 14em;width:auto"><button type="submit">Hinzufügen</button></form>`;
-  h+=`<h2>Gelernte Zuordnungen</h2><p class="muted">Beim Speichern merkt sich die App Produkt und Kategorie. Hier korrigierst du Fehler.</p>
-  <label class="f" for="rule-filter">Produkte durchsuchen<input id="rule-filter" value="${esc(ui.ruleFilter)}" placeholder="z. B. Milch"></label>
-  <div id="prod-list">`+prodList()+`</div>`;
-  h+=`<h3>Händler (${mers.length})</h3>`;
-  h+=mers.length?`<div class="list">${mers.map(([k,m])=>`<div class="rule"><span class="k">${esc(k)}${m.always?' <span class="tag">immer</span>':''}</span>
+  h+=`<h2>Mehr</h2><div class="acc">`;
+  h+=sec('anleitung','Anleitung','Kurze Tour und 10 Themen',()=>noH2(vGuide()));
+  h+=sec('steuer','Steuer & Jahresexport',`${ui.taxYear}: ${fmt(tx.total)} absetzbar`,()=>noH2(vTaxYear()));
+  h+=sec('sperre','App-Sperre',getLock()?'an':'aus',()=>noH2(vLockSettings()));
+  h+=sec('budgets','Budgets',state.useBudgets?`an · ${nB} ${nB===1?'Budget':'Budgets'}`:'aus',()=>`<div class="box"><label class="check"><input id="use-budgets" type="checkbox"${state.useBudgets?' checked':''}> Monatsbudgets verwenden</label>
+    ${state.useBudgets?`<p class="muted small" style="margin:0">Leer lassen = kein Budget. Ab 80 % warnt die App, über 100 % wird es rot.</p><div class="list">${state.categories.map(c=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) 8em"><span><i class="dot" style="--c:${c.color}"></i> ${esc(c.name)}</span><input id="bud-${c.id}" data-budget="${c.id}" inputmode="decimal" value="${+state.budgets[c.id]>0?fmtIn(state.budgets[c.id]):''}" placeholder="–" aria-label="Budget ${esc(c.name)}"></div>`).join('')}</div>`:''}</div>`);
+  h+=sec('kategorien','Kategorien',`${state.categories.length} Kategorien`,catPanel);
+  h+=sec('gelernt','Gelernte Zuordnungen',`${Object.keys(state.rules.products).length} Produkte · ${mers.length} Händler`,()=>`<p class="muted small" style="margin:0 2px 8px">Beim Speichern merkt sich die App Produkt und Kategorie. Hier korrigierst du Fehler.</p>
+    <label class="f" for="rule-filter">Produkte durchsuchen<input id="rule-filter" value="${esc(ui.ruleFilter)}" placeholder="z. B. Milch"></label>
+    <div id="prod-list">${prodList()}</div><h3>Händler (${mers.length})</h3>`+(mers.length?`<div class="list">${mers.map(([k,m])=>`<div class="rule"><span class="k">${esc(k)}${m.always?' <span class="tag">immer</span>':''}</span>
     <select id="rm-${esc(k)}" data-rule="m" data-key="${esc(k)}" aria-label="Kategorie für ${esc(k)}">${catOpts(m.cat)}</select>
-    <button class="icon ghost danger" data-act="rdel" data-type="m" data-key="${esc(k)}" aria-label="Regel löschen">×</button></div>`).join('')}</div>`
-    :`<div class="list"><div class="empty">Noch keine Händler gespeichert.</div></div>`;
-  h+=`<h2>Export für Excel</h2><p class="muted">CSV-Dateien mit Semikolon und Komma-Beträgen, öffnen direkt in Excel.</p>
-  <div class="row"><button data-act="csv-items">Alle Belegpositionen</button><button data-act="csv-months">Monatsübersicht</button><button data-act="csv-fixed">Planung (Fixkosten, Verträge, Sparziele)</button></div>`;
-  h+=`<h2>Backup</h2><p class="muted">Deine Daten liegen nur auf diesem Handy. Lade ab und zu ein Backup herunter und leg es z. B. in Google Drive ab.${persistGranted?' Der Browser hat dauerhaften Speicher zugesagt.':''}</p>
+    <button class="icon ghost danger" data-act="rdel" data-type="m" data-key="${esc(k)}" aria-label="Regel löschen">×</button></div>`).join('')}</div>`:`<div class="list"><div class="empty">Noch keine Händler gespeichert.</div></div>`));
+  h+=sec('export','Export für Excel','CSV-Dateien',()=>`<p class="muted small" style="margin:0 2px 8px">Mit Semikolon und Komma-Beträgen, öffnen direkt in Excel.</p>
+    <div class="row"><button data-act="csv-items">Alle Belegpositionen</button><button data-act="csv-months">Monatsübersicht</button><button data-act="csv-fixed">Planung</button></div>`);
+  h+=sec('backup','Backup & Daten',lb==null?'noch kein Backup':lb===0?'letztes Backup heute':`letztes Backup vor ${lb} ${lb===1?'Tag':'Tagen'}`,()=>`<p class="muted">Deine Daten liegen nur auf diesem Handy. Lade ab und zu ein Backup herunter und leg es z. B. in Google Drive ab.${persistGranted?' Der Browser hat dauerhaften Speicher zugesagt.':''}</p>
   <div class="box">
     ${cryptoOk?`<p class="small" style="margin:0">Mit Passwort ist die Datei verschlüsselt. Ohne das Passwort kann sie niemand lesen, auch du nicht. Notiere es dir gut.</p>
     <label class="f" for="bk-pw">Backup-Passwort (mind. 8 Zeichen)<input id="bk-pw" type="password" autocomplete="new-password"></label>
@@ -989,10 +1120,10 @@ function vMehr(){
   </div>
   <h3>Alles löschen</h3>
   <div class="row">${ui.confirmClear?`<span class="small">Wirklich alle Belege, Fixkosten, Einnahmen und Regeln löschen?</span><button class="danger" data-act="clear-yes">Ja, alles löschen</button><button data-act="clear-no">Abbrechen</button>`:`<button class="danger" data-act="clear">Alle Daten löschen</button>`}</div>
-  <p class="muted small" style="margin-top:24px">Kassensturz ${APP_VERSION} · Daten nur auf diesem Gerät</p>`;
+`);
+  h+=`</div><p class="muted small" style="margin-top:20px">Kassensturz ${APP_VERSION} · Daten nur auf diesem Gerät</p>`;
   return h;
 }
-
 /* ---------- Verschlüsselung (Web Crypto, alles auf dem Gerät) ---------- */
 const cryptoOk=!!(window.crypto&&crypto.subtle&&window.isSecureContext);
 const LOCKKEY='kassensturz-lock';
@@ -1102,39 +1233,41 @@ const ART={
 const TUT={
   start:{title:'Kurze Tour',goto:'monat',steps:[
     {t:'Willkommen bei Kassensturz',x:'Dein Haushaltsbuch, das nur auf deinem Handy speichert. Kein Konto, keine Bankverbindung, kein Server.',a:'welcome'},
-    {t:'Belege erfassen',x:'Unter „Beleg“ fotografierst du einen Bon oder öffnest eine PDF-Rechnung. Die App liest Händler, Datum und Beträge aus und ordnet jede Position einer Kategorie zu.',a:'receipt'},
+    {t:'Ausgaben erfassen',x:'Kleine Ausgaben tippst du oben ins Schnelleingabe-Feld, etwa „Kaffee 3,50“. Bons fotografierst du unter „Beleg“, dort öffnest du auch PDF-Rechnungen. Die App ordnet alles einer Kategorie zu.',a:'receipt'},
     {t:'Die App lernt mit',x:'Kennt sie ein Produkt noch nicht, wählst du die Kategorie einmal aus. Beim nächsten Bon weiß sie es.',a:'learn'},
-    {t:'Planen',x:'Unter „Planen“ trägst du Einnahmen, feste Kosten, Verträge und Sparziele ein. Sie zählen jeden Monat automatisch.',a:'plan'},
+    {t:'Planen',x:'Unter „Planen“ siehst du Einnahmen, Fixkosten, Verträge und Sparziele mit ihren Summen. Tippe einen Bereich an, um ihn aufzuklappen und Einträge hinzuzufügen.',a:'plan'},
     {t:'Der Monat auf einen Blick',x:'„Monat“ zeigt Einnahmen, Ausgaben und was übrig bleibt, nach Kategorien als Balken oder Kuchen. Mit den Pfeilen oben wechselst du den Monat, durch Wischen nach links oder rechts den Reiter.',a:'pie'},
     {t:'Deine Daten sichern',x:'Alles liegt nur auf diesem Handy. Lade unter „Mehr“ ab und zu ein Backup herunter, am besten mit Passwort.',a:'backup'},
     {t:'Bereit',x:'Mit den Beispieldaten kannst du dich in Ruhe umsehen und sie entfernen, sobald du startest. Diese Anleitung findest du jederzeit unter „Mehr“.',a:'done'}]},
-  beleg:{title:'Beleg erfassen',goto:'beleg',steps:[
-    {t:'Foto oder PDF',x:'Tippe unter „Beleg“ auf „Foto, Screenshot oder PDF wählen“. Fotografiere den Bon gerade, formatfüllend und hell. Aus Galerie oder Mail geht es auch über „Teilen → Kassensturz“.',a:'receipt'},
+  beleg:{title:'Ausgaben und Belege erfassen',goto:'beleg',steps:[
+    {t:'Schnelleingabe',x:'Tippe oben im Monat oder unter „Beleg“ etwa „Kaffee 3,50“ ein und bestätige. Das Datum ist immer heute. Kennt die App das Wort noch nicht, fragt sie einmal nach der Kategorie.',a:'learn'},
+    {t:'Fotos oder PDFs',x:'Tippe unter „Beleg“ auf „Fotos, Screenshots oder PDFs wählen“. Du kannst mehrere auf einmal auswählen, die App zeigt sie nacheinander zum Prüfen. Aus Galerie oder Mail geht es auch über „Teilen → Kassensturz“.',a:'receipt'},
     {t:'Prüfen und speichern',x:'Die App zeigt Händler, Datum und Positionen. Passt die Summe nicht zum Bon, siehst du einen Hinweis und gleichst ihn mit „Differenz als Position“ oder „Nur Gesamtbetrag verwenden“ aus.',a:'pdf'},
     {t:'Ohne Bon',x:'Mit „Ohne Bon eintragen“ erfasst du Ausgaben von Hand. Text aus Google Lens fügst du ins Textfeld ein und tippst auf „Text auswerten“.',a:'learn'},
     {t:'Nochmal und Vorlagen',x:'Kaufst du etwas öfter, etwa ein Ticket: Beleg im Monat antippen und „Nochmal erfassen“. Oder ihn „Als Vorlage merken“, dann liegt er unter „Beleg“ ganz oben als Knopf.',a:'repeat'},
     {t:'Retouren',x:'Schickst du etwas zurück, öffne den Originalbeleg und tippe auf „Retoure erfassen“. Der Betrag wird von den Ausgaben abgezogen.',a:'repeat'}]},
-  kategorien:{title:'Kategorien und Lernen',goto:'mehr',steps:[
+  kategorien:{title:'Kategorien und Lernen',goto:'mehr',anchor:'kategorien',steps:[
     {t:'Automatisch zuordnen',x:'Jede Position bekommt eine Kategorie: über den Händler (Zalando → Kleidung), über Stichwörter (Milch → Essen) oder über das, was du der App beigebracht hast.',a:'cats'},
     {t:'Unbekannte Produkte',x:'Gelb markierte Positionen kennt die App noch nicht. Wähle einmal die Kategorie, beim Speichern merkt sie sich das.',a:'learn'},
     {t:'Ganzer Händler',x:'Mit dem Haken „Bei … immer … verwenden“ landet alles von diesem Händler in einer Kategorie.',a:'cats'},
-    {t:'Korrigieren',x:'Unter „Mehr → Gelernte Zuordnungen“ siehst und änderst du alles Gelernte. Eigene Kategorien legst du unter „Kategorien“ an.',a:'learn'}]},
-  fix:{title:'Einnahmen und Fixkosten',goto:'fixkosten',steps:[
-    {t:'Einmal eintragen',x:'Unter „Planen“ trägst du Gehalt, Miete, Strom oder Abos einmal ein. Danach zählen sie jeden Monat automatisch.',a:'plan'},
+    {t:'Namen und Farben',x:'Unter „Mehr → Kategorien“ tippst du eine Kategorie an und änderst Namen oder Farbe. Dort legst du auch eigene Kategorien an.',a:'cats'},
+    {t:'Korrigieren',x:'Unter „Mehr → Gelernte Zuordnungen“ siehst und änderst du alles, was die App gelernt hat.',a:'learn'}]},
+  fix:{title:'Einnahmen und Fixkosten',goto:'fixkosten',anchor:'fix',steps:[
+    {t:'Einmal eintragen',x:'Unter „Planen“ tippst du auf „Einnahmen“ oder „Fixkosten“. Ganz oben steht „+ Neue …“. Einmal eingetragen, zählen Gehalt, Miete oder Abos jeden Monat automatisch.',a:'plan'},
     {t:'Rhythmus',x:'Wähle monatlich, vierteljährlich, halbjährlich oder jährlich. Jährliche Beträge rechnet die App auf den Monat um: 60 € Haftpflicht im Jahr sind 5 € pro Monat.',a:'plan'},
     {t:'Start und Ende',x:'Mit „Ab Monat“ und „Bis Monat“ zählt ein Eintrag nur in diesem Zeitraum. „Einmalig“ zählt nur im gewählten Monat, etwa ein Bonus.',a:'plan'},
     {t:'Was übrig bleibt',x:'Einnahmen minus Fixkosten, Belege und Sparrate ergibt im Monat „Übrig“, also das, was du noch frei ausgeben kannst.',a:'pie'}]},
   vertraege:{title:'Verträge und Kündigungsfristen',goto:'fixkosten',anchor:'vertraege',steps:[
-    {t:'Vertrag anlegen',x:'Öffne bei einer Fixkosten-Position „Vertrag & Kündigung“. Trage ein, wann die Mindestlaufzeit endet, die Kündigungsfrist und um wie viel sich der Vertrag danach verlängert.',a:'contract'},
+    {t:'Vertrag anlegen',x:'Tippe unter „Planen → Fixkosten“ einen Eintrag an, dann „Bearbeiten“ und „Vertrag & Kündigung“. Trage ein, wann die Mindestlaufzeit endet, die Kündigungsfrist und die Verlängerung.',a:'contract'},
     {t:'Die App rechnet',x:'Daraus berechnet sie den letzten Tag, an dem du noch kündigen kannst. Verlängert sich der Vertrag, rechnet sie automatisch weiter.',a:'contract'},
     {t:'Rechtzeitig erinnert',x:'Ab 6 Wochen vor der Frist erscheint im Monat ein Hinweis, ab 2 Wochen in Rot. Alle Fristen stehen unter „Planen → Verträge“.',a:'contract'}]},
   sparen:{title:'Sparziele und Sparrate',goto:'fixkosten',anchor:'sparziele',steps:[
-    {t:'Sparziel anlegen',x:'Unter „Planen → Sparziele“ tippst du auf „+ Neues Sparziel“. Gib einen Namen ein, etwa „Urlaub“, und optional Zielbetrag und Datum.',a:'goal'},
+    {t:'Sparziel anlegen',x:'Unter „Planen“ tippst du auf „Sparziele“ und dann ganz oben auf „+ Neues Sparziel“. Gib einen Namen ein, etwa „Urlaub“, und optional Zielbetrag und Datum.',a:'goal'},
     {t:'Die Sparrate',x:'Die Sparrate ist der Betrag, den du jeden Monat zurücklegst. Sie wird ab dem aktuellen Monat automatisch gutgeschrieben. Änderst du sie, gilt die neue Rate ab diesem Monat.',a:'goal'},
-    {t:'Ein- und auszahlen',x:'Mit „+ Einzahlen“ buchst du Extra-Beträge, etwa Weihnachtsgeld. Mit „− Entnehmen“ nimmst du Geld heraus, zum Beispiel wenn du den Urlaub bezahlst. Ein Startguthaben gibst du beim Anlegen an.',a:'goal'},
+    {t:'Ein- und auszahlen',x:'Tippe ein Sparziel an. Mit „+ Einzahlen“ buchst du Extra-Beträge, etwa Weihnachtsgeld. Mit „− Entnehmen“ nimmst du Geld heraus, zum Beispiel wenn du den Urlaub bezahlst. Ein Startguthaben gibst du beim Anlegen an.',a:'goal'},
     {t:'Fortschritt',x:'Die App zeigt deinen Stand, wie viel du pro Monat brauchst, um das Ziel rechtzeitig zu erreichen, und wann du es mit der aktuellen Rate schaffst.',a:'goal'},
     {t:'Warum „Übrig“ kleiner wird',x:'Gespartes ist keine Ausgabe, aber auch nicht mehr frei verfügbar. Deshalb zieht die App die Sparrate von „Übrig“ ab. Ist ein Ziel erreicht, kannst du die Rate mit einem Tipp beenden.',a:'pie'}]},
-  budgets:{title:'Budgets',goto:'mehr',steps:[
+  budgets:{title:'Budgets',goto:'mehr',anchor:'budgets',steps:[
     {t:'Einschalten',x:'Unter „Mehr → Budgets“ schaltest du Monatsbudgets ein und trägst pro Kategorie einen Betrag ein, etwa 300 € für Essen.',a:'budget'},
     {t:'Rechtzeitig gewarnt',x:'Im Monat zeigt jede Kategorie, wie viel noch übrig ist. Ab 80 % wird sie gelb, über 100 % rot, und oben erscheint ein Hinweis.',a:'budget'},
     {t:'Balken oder Kuchen',x:'Budgets siehst du in der Balkenansicht. Der Kuchen zeigt dafür die Anteile der Kategorien.',a:'pie'}]},
@@ -1143,15 +1276,16 @@ const TUT={
     {t:'Erinnerung',x:'Offene Rechnungen stehen im Monat ganz oben, kurz vor und nach der Fälligkeit in Rot.',a:'invoice'},
     {t:'Bezahlt',x:'Hast du überwiesen, tippe auf „Bezahlt“. Als Ausgabe zählt die Rechnung im Monat ihres Rechnungsdatums.',a:'done'}]},
   steuer:{title:'Steuer und Jahresexport',goto:'mehr',anchor:'steuer',steps:[
-    {t:'Markieren',x:'Unter jeder Position wählst du „§“, etwa Arbeitsmittel oder Fachliteratur. Die App merkt sich das für das Produkt. Auch Fixkosten wie ein Gewerkschaftsbeitrag lassen sich markieren.',a:'tax'},
+    {t:'Markieren',x:'Beim Prüfen eines Belegs tippst du neben einer Position auf „§“ und wählst etwa Arbeitsmittel oder Fachliteratur. Die App merkt sich das für das Produkt. Auch Fixkosten wie ein Gewerkschaftsbeitrag lassen sich markieren.',a:'tax'},
+    {t:'Versicherungen',x:'Berufsunfähigkeit, Unfall oder Haftpflicht zählen als „Vorsorge“. Dafür gilt ein Höchstbetrag, den oft schon die Krankenversicherung ausschöpft. Eine Diensthaftpflicht zählt zu den Werbungskosten. Unter Fixkosten macht die App einen Vorschlag.',a:'tax'},
     {t:'Handwerker und Arzt',x:'Bei Handwerkerrechnungen schlägt die App für Arbeitslohn und Anfahrt „Handwerkerleistungen“ vor, bei Arztrechnungen „Krankheitskosten“.',a:'tax'},
-    {t:'Jahresliste',x:'Unter „Mehr → Steuer & Jahresexport“ siehst du die Summen je Art und lädst die Steuerliste als CSV. Sie ist eine Sammelhilfe, keine Steuerberatung.',a:'chart'},
+    {t:'Jahresliste',x:'Unter „Mehr → Steuer & Jahresexport“ siehst du die Summen so sortiert wie in der Steuererklärung: Werbungskosten, Vorsorge, Handwerker, Krankheitskosten. Die Steuerliste lädst du als CSV. Sie ist eine Sammelhilfe, keine Steuerberatung.',a:'chart'},
     {t:'Jahresabschluss',x:'Ab dem 15. Dezember erinnert dich die App an den Jahresexport: Jahres-CSV, Steuerliste und Backup.',a:'backup'}]},
   verlauf:{title:'Verlauf und Suche',goto:'verlauf',steps:[
     {t:'12 Monate im Blick',x:'„Verlauf“ zeigt Fixkosten, Belege und Einnahmen der letzten 12 Monate. Tippe auf einen Monat, um ihn zu öffnen.',a:'chart'},
     {t:'Nach Kategorie',x:'Über „Anzeigen“ siehst du nur eine Kategorie, etwa wie sich deine Ausgaben für Essen entwickeln.',a:'chart'},
     {t:'Suchen',x:'Die Suche findet Positionen in allen Belegen und rechnet die Treffer zusammen, etwa: Wie viel habe ich dieses Jahr für Kaffee ausgegeben?',a:'learn'}]},
-  sicherheit:{title:'Backup, Sperre und Updates',goto:'mehr',steps:[
+  sicherheit:{title:'Backup, Sperre und Updates',goto:'mehr',anchor:'backup',steps:[
     {t:'Nur auf dem Handy',x:'Alle Daten liegen ausschließlich auf diesem Handy. Löschst du die App oder die Browserdaten, sind sie weg.',a:'welcome'},
     {t:'Backup',x:'Unter „Mehr → Backup“ lädst du eine Sicherung herunter, am besten mit Passwort verschlüsselt, und legst sie etwa in Google Drive ab. Ohne das Passwort lässt sie sich nicht öffnen.',a:'backup'},
     {t:'App-Sperre',x:'Mit einer PIN unter „Mehr → App-Sperre“ fragt die App beim Start und nach 1 Minute im Hintergrund nach der PIN.',a:'lock'},
@@ -1162,7 +1296,8 @@ function openTut(topic){ui.tut={topic,i:0};render()}
 function closeTut(goto){
   const t=ui.tut&&TUT[ui.tut.topic];ui.tut=null;
   if(!state.prefs.tutorialDone){state.prefs.tutorialDone=true;persist()}
-  if(goto&&t){if(t.anchor)ui.jumpTo=t.anchor;if(ui.tab!==t.goto)go(t.goto);else{render();if(t.anchor){const n=document.getElementById(t.anchor);ui.jumpTo='';if(n)n.scrollIntoView({block:'start'})}}}
+  setTimeout(focusAction,0);
+  if(goto&&t){if(t.anchor){ui.jumpTo=t.anchor;if(t.goto==='fixkosten')ui.planOpen=t.anchor;if(t.goto==='mehr')ui.moreOpen=t.anchor}if(ui.tab!==t.goto)go(t.goto);else{render();if(t.anchor){ui.jumpTo='';scrollToHead(t.anchor)}}}
   else render();
 }
 function vTut(){
@@ -1202,9 +1337,11 @@ function render(){
   document.documentElement.classList.toggle('tut-open',!!ui.tut);
   if(ui.tut){const c=document.getElementById('tut-card');if(c)c.focus({preventScroll:true})}
 }
+function scrollToHead(id){const n=document.getElementById(id);if(n){const r=n.getBoundingClientRect(),hh=(header&&header.offsetHeight)||0;if(r.top<hh+8||r.top>window.innerHeight*0.6)window.scrollBy({top:r.top-hh-12})}}
+function focusForm(id){const n=document.getElementById(id);if(n){const f=n.closest('form')||n;const r=f.getBoundingClientRect(),hh=(header&&header.offsetHeight)||0;if(r.top<hh||r.bottom>window.innerHeight)window.scrollBy({top:r.top-hh-12});n.focus({preventScroll:true})}}
 function go(tab){if(location.hash!=='#'+tab){location.hash='#'+tab}else render()}
 function route(){const t=(location.hash||'').slice(1);ui.err='';ui.tab=TABS.includes(t)?t:'monat';render();
-  if(ui.jumpTo){const n=document.getElementById(ui.jumpTo);ui.jumpTo='';if(n)setTimeout(()=>n.scrollIntoView({block:'start'}),0)}}
+  if(ui.jumpTo){const id=ui.jumpTo;ui.jumpTo='';setTimeout(()=>scrollToHead(id),0)}}
 window.addEventListener('hashchange',()=>{ui.flash=ui.flashNext||'';ui.flashNext='';ui.confirmDel=null;ui.confirmCat=null;window.scrollTo(0,0);route()});
 
 // Neu zeichnen, ohne dass das gerade angetippte Feld seine Eingabe verliert
@@ -1259,6 +1396,7 @@ function saveDraft(){
   let tplMsg='';if(d.asTemplate&&!d.refund){tplMsg=addTemplate(rec)?' · Vorlage gemerkt':'';persist()}
   ui.draft=null;ui.paste='';ui.err='';ui.dup=null;ui.dupOk=false;ui.ym=rec.date.slice(0,7);ui.open=rec.id;
   const msg=(d.refund?'Retoure gespeichert: ':'Beleg gespeichert: ')+fmt(rTotal(rec))+(learned?` · ${learned} ${learned===1?'Zuordnung':'Zuordnungen'} gelernt`:'')+tplMsg;
+  if(ui.qTotal>1){ui.qSaved=(ui.qSaved||0)+1;ui.ym=thisYM();if(queueNext())return}
   if(location.hash!=='#monat'){ui.flashNext=msg;location.hash='#monat'}else{ui.flash=msg;render()}
 }
 
@@ -1296,9 +1434,10 @@ function exportCsv(kind,year){
     name=`kassensturz-planung-${t}.csv`;
   }else if(kind==='tax'){
     const tx=taxYear(year);
-    rows=[['Datum','Händler','Position','Art','Betrag']];
-    tx.rows.forEach(r=>rows.push([fmtD(r.date),r.merchant,r.name,TAXKINDS[r.kind]||r.kind,csvNum(r.amount)]));
-    rows.push([]);Object.entries(TAXKINDS).forEach(([k,v])=>rows.push(['','','Summe',v,csvNum(tx.by[k]||0)]));rows.push(['','','Gesamt','',csvNum(tx.total)]);
+    rows=[['Datum','Händler','Position','Gruppe','Art','Betrag']];
+    const grp=k=>TAXGROUPS.find(g=>g.kinds.includes(k))||{name:''};
+    tx.rows.slice().sort((a,b)=>TAXGROUPS.indexOf(grp(a.kind))-TAXGROUPS.indexOf(grp(b.kind))||a.date.localeCompare(b.date)).forEach(r=>rows.push([fmtD(r.date),r.merchant,r.name,grp(r.kind).name,TAXKINDS[r.kind]||r.kind,csvNum(r.amount)]));
+    rows.push([]);TAXGROUPS.forEach(g=>{g.kinds.forEach(k=>rows.push(['','','Summe',g.name,TAXKINDS[k],csvNum(tx.by[k]||0)]));rows.push(['','','Summe '+g.name,`(${g.where})`,'',csvNum(g.kinds.reduce((a,k)=>a+(tx.by[k]||0),0))])});
     name=`kassensturz-steuer-${year}.csv`;markYear(year,'tax');
   }else if(kind==='year'){
     rows=[MONTH_HEAD()];const sum=new Array(rows[0].length-1).fill(0);
@@ -1314,6 +1453,10 @@ function exportCsv(kind,year){
   download(name,csv(rows),'text/csv;charset=utf-8');
 }
 function dataYears(){const ys=new Set([+thisYM().slice(0,4)]);state.receipts.forEach(r=>r.date&&ys.add(+r.date.slice(0,4)));return [...ys].sort((a,b)=>b-a)}
+const TAX_NOTES={
+  vs:'Für Versicherungen wie Berufsunfähigkeit, Unfall oder Haftpflicht gilt ein gemeinsamer Höchstbetrag von 1.900 € im Jahr (Selbstständige 2.800 €). Kranken- und Pflegeversicherung füllen ihn oft schon allein, dann wirken diese Beiträge nicht mehr. Eintragen schadet trotzdem nicht. Eine BU als Teil einer Basisrente zählt zur Altersvorsorge.',
+  hw:'Absetzbar sind nur Arbeits-, Fahrt- und Maschinenkosten, nicht das Material, und nur bei Überweisung.',
+  ab:'Krankheitskosten wirken erst über der zumutbaren Belastung.'};
 function vTaxYear(){
   const y=ui.taxYear,tx=taxYear(y),ye=state.yearExport[y]||{};
   const yd=yearDue();
@@ -1321,10 +1464,10 @@ function vTaxYear(){
   <label class="f" for="tax-year" style="margin-bottom:10px">Jahr<select id="tax-year">${dataYears().map(v=>`<option value="${v}"${v===y?' selected':''}>${v}</option>`).join('')}</select></label>
   <div class="box">
     <b>Steuerlich absetzbar ${y}</b>
-    <div class="lines">${Object.entries(TAXKINDS).map(([k,v])=>`<div><span class="n">${v}</span><span></span><span class="num">${fmt(tx.by[k]||0)}</span></div>`).join('')}
-      <div style="border-top:1px dashed var(--line);padding-top:4px"><span class="n"><b>Gesamt</b> <span class="muted">(${tx.rows.length} Positionen)</span></span><span></span><b class="num">${fmt(tx.total)}</b></div></div>
-    <p class="muted small" style="margin:0">Markiere Positionen beim Prüfen eines Belegs oder bei Fixkosten mit „§“. Die Liste ist eine Hilfe für die Steuererklärung, keine Steuerberatung.</p>
-    <p class="muted small" style="margin:0">Handwerkerleistungen: Absetzbar sind nur Arbeits-, Fahrt- und Maschinenkosten, nicht das Material, und nur bei Überweisung. Krankheitskosten wirken erst über der zumutbaren Belastung.</p>
+    ${TAXGROUPS.map(g=>{const sum=g.kinds.reduce((a,k)=>a+(tx.by[k]||0),0);return `<div class="taxgrp"><div class="tg-h"><span><b>${g.name}</b> <small class="muted">${g.where}</small></span><b class="num">${fmt(sum)}</b></div>
+      ${g.kinds.length>1?`<div class="lines">${g.kinds.map(k=>`<div><span class="n">${TAXKINDS[k]}</span><span></span><span class="num">${fmt(tx.by[k]||0)}</span></div>`).join('')}</div>`:''}
+      ${TAX_NOTES[g.id]?`<p class="muted small" style="margin:0">${TAX_NOTES[g.id]}</p>`:''}</div>`}).join('')}
+    <p class="muted small" style="margin:0">${tx.rows.length} markierte Positionen. Markiere beim Prüfen eines Belegs oder bei Fixkosten mit „§“. Die Liste ist eine Sammelhilfe, keine Steuerberatung.</p>
   </div>
   <div class="box" id="jahr" style="margin-top:10px">
     <b>Jahresexport ${y}</b>${ye.done?' <span class="tag ret">erledigt</span>':''}
@@ -1339,7 +1482,7 @@ document.addEventListener('click',ev=>{
   const a=b.dataset.act,id=b.dataset.id,i=+b.dataset.i;
   const d=ui.draft;
   switch(a){
-    case 'month':ui.ym=addMonths(ui.ym,+b.dataset.d);ui.flash='';ui.open=null;if(['beleg','mehr'].includes(ui.tab))go('monat');else render();break;
+    case 'month':ui.showAll=false;ui.ym=addMonths(ui.ym,+b.dataset.d);ui.flash='';ui.open=null;if(['beleg','mehr'].includes(ui.tab))go('monat');else render();break;
     case 'goto':ui.ym=b.dataset.ym;go('monat');break;
     case 'remove-examples':state.receipts=state.receipts.filter(r=>!r.example);state.fixed=state.fixed.filter(f=>!f.example);
       {const exg=state.goals.filter(g=>g.example).map(g=>g.id);state.goals=state.goals.filter(g=>!g.example);state.deposits=state.deposits.filter(d=>!d.example&&!exg.includes(d.goalId))}persist();ui.flash='Beispieldaten entfernt. Trag als Erstes deine Einnahmen und Fixkosten ein.';render();break;
@@ -1390,10 +1533,12 @@ document.addEventListener('click',ev=>{
     case 'accept-all':d.items.forEach(x=>{if(!x.cat&&x.suggest){x.cat=x.suggest;x.src='Vorschlag übernommen'}});ui.err='';render();break;
     case 'save':saveDraft();break;
     case 'save-dup':ui.dupOk=true;ui.dup=null;saveDraft();break;
-    case 'cancel':ui.draft=null;ui.err='';ui.dup=null;if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}render();break;
+    case 'cancel':ui.draft=null;ui.err='';ui.dup=null;if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}if(ui.qTotal>1&&queueNext())break;render();break;
+    case 'queue-next':ui.err='';queueNext();break;
+    case 'queue-stop':ui.queue=[];ui.err='';if(!ui.draft&&!ui.ocr)queueNext();else render();break;
     case 'jump':{ev.preventDefault();const n=document.getElementById(b.dataset.to);if(n)n.scrollIntoView({block:'start'});break}
-    case 'goal-new':ui.goalNew=true;ui.goalEdit=null;ui.depositFor=null;ui.err='';render();{const n=document.getElementById('g-name');if(n){n.scrollIntoView({block:'center'});n.focus()}}break;
-    case 'goal-edit':ui.goalEdit=id;ui.goalNew=false;ui.depositFor=null;ui.err='';render();{const n=document.getElementById('g-name');if(n)n.scrollIntoView({block:'center'})}break;
+    case 'goal-new':ui.goalNew=true;ui.goalEdit=null;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
+    case 'goal-edit':ui.goalEdit=id;ui.goalNew=false;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
     case 'goal-cancel':ui.goalEdit=null;ui.goalNew=false;ui.err='';render();break;
     case 'goal-del':ui.confirmGoal=id;render();break;
     case 'goal-del-no':ui.confirmGoal=null;render();break;
@@ -1402,13 +1547,33 @@ document.addEventListener('click',ev=>{
     case 'dep':ui.depositFor=id;ui.depositSign=+b.dataset.sign||1;ui.goalEdit=null;ui.goalNew=false;ui.err='';render();{const n=document.getElementById('dep-amount');if(n)n.focus()}break;
     case 'dep-cancel':ui.depositFor=null;ui.err='';render();break;
     case 'dep-del':state.deposits=state.deposits.filter(d=>d.id!==id);persist();render();break;
-    case 'fedit':ui.fixedEdit=id;ui.err='';render();{const n=document.getElementById('fx-head');if(n)n.scrollIntoView({block:'start'})}break;
-    case 'fcancel':ui.fixedEdit=null;ui.err='';render();break;
+    case 'fedit':{const f=state.fixed.find(x=>x.id===id);if(!f)break;ui.fixedEdit=id;ui.fxForm='edit';ui.planOpen=f.kind==='in'?'ein':'fix';ui.err='';render();focusForm('fx-name');break}
+    case 'fcancel':ui.fixedEdit=null;ui.fxForm=null;ui.err='';render();break;
+    case 'fx-new':ui.fxForm='new';ui.fxKind=b.dataset.kind;ui.fixedEdit=null;ui.err='';render();focusForm('fx-name');break;
+    case 'fx-toggle':ui.fxOpen=ui.fxOpen===id?null:id;render();break;
+    case 'goal-toggle':ui.goalOpen=ui.goalOpen===id?null:id;ui.depositFor=null;ui.confirmGoal=null;render();break;
+    case 'quick-cat':if(ui.quickAsk)saveQuick(ui.quickAsk.name,ui.quickAsk.amount,b.dataset.c);break;
+    case 'quick-cancel':ui.quickAsk=null;render();{const n=document.getElementById('quick');if(n)n.focus()}break;
+    case 'quick-undo':{const d=ui.quickDone;if(d){state.receipts=state.receipts.filter(r=>r.id!==d.id);persist();ui.quickText=`${d.name} ${fmtIn(d.amount)}`;ui.quickDone=null;render();const n=document.getElementById('quick');if(n)n.focus()}break}
+    case 'tax-show':if(ui.draft&&ui.draft.items[i])ui.draft.items[i].taxShow=true;render();{const n=document.getElementById('t-'+i);if(n)n.focus()}break;
+    case 'more-open':{const sec=b.dataset.sec;ui.moreOpen=ui.moreOpen===sec?null:sec;ui.catEdit=null;ui.confirmCat=null;ui.confirmClear=false;ui.err='';render();scrollToHead(sec);break}
+    case 'cat-edit':ui.catEdit=ui.catEdit===id?null:id;ui.catColor=null;ui.confirmCat=null;ui.err='';render();break;
+    case 'cat-color':ui.catColor=b.dataset.col;{const nm=document.getElementById('cat-ename');const v=nm?nm.value:null;render();const n2=document.getElementById('cat-ename');if(n2&&v!=null)n2.value=v}break;
+    case 'cat-cancel':ui.catEdit=null;ui.catColor=null;ui.err='';render();break;
+    case 'cat-save':{const c=state.categories.find(x=>x.id===ui.catEdit);if(!c)break;const nm=val('cat-ename').trim();
+      if(!nm){ui.err='Bitte gib der Kategorie einen Namen.';render();break}
+      if(state.categories.some(x=>x.id!==c.id&&x.name.toLowerCase()===nm.toLowerCase())){ui.err=`„${nm}“ gibt es schon.`;render();break}
+      c.name=nm.slice(0,30);if(ui.catColor)c.color=ui.catColor;ui.catEdit=null;ui.catColor=null;ui.err='';persist();render();break}
+    case 'mon-open':ui.monOpen=ui.monOpen===b.dataset.sec?null:b.dataset.sec;render();break;
+    case 'mon-goals':ui.monOpen=ui.monOpen==='goals'?null:'goals';render();break;
+    case 'show-all':ui.showAll=!ui.showAll;render();break;
+    case 'plan-go':ui.planOpen=b.dataset.sec;ui.jumpTo=b.dataset.sec;go('fixkosten');break;
+    case 'plan-open':{const sec=b.dataset.sec;ui.planOpen=ui.planOpen===sec?null:sec;ui.fxForm=null;ui.fixedEdit=null;ui.fxOpen=null;ui.goalNew=false;ui.goalEdit=null;ui.depositFor=null;ui.err='';render();scrollToHead(sec);break}
     case 'fdel':state.fixed=state.fixed.filter(f=>f.id!==id);if(ui.fixedEdit===id)ui.fixedEdit=null;persist();render();break;
     case 'rdel':{const t=b.dataset.type==='p'?state.rules.products:state.rules.merchants;delete t[b.dataset.key];persist();render();break}
     case 'cdel':ui.confirmCat=id;render();break;
     case 'cdel-no':ui.confirmCat=null;render();break;
-    case 'cdel-yes':{const cid=ui.confirmCat;ui.confirmCat=null;if(!cid||cid==='sonstiges'){render();break}
+    case 'cdel-yes':{const cid=ui.confirmCat;ui.confirmCat=null;ui.catEdit=null;if(!cid||cid==='sonstiges'){render();break}
       state.categories=state.categories.filter(c=>c.id!==cid);
       const fix=o=>{if(o.cat===cid)o.cat='sonstiges'};state.fixed.forEach(fix);state.receipts.forEach(r=>r.items.forEach(fix));
       Object.keys(state.rules.products).forEach(k=>{if(state.rules.products[k]===cid)state.rules.products[k]='sonstiges'});
@@ -1416,9 +1581,9 @@ document.addEventListener('click',ev=>{
     case 'csv-items':exportCsv('items');break;
     case 'csv-tax':exportCsv('tax',ui.taxYear);render();break;
     case 'year-csv':exportCsv('year',ui.taxYear);render();break;
-    case 'year-backup':{const n=document.getElementById('bk-pw')||document.getElementById('bk-plain');ui.backupFor=ui.taxYear;if(n){n.scrollIntoView({block:'center'});n.focus()}break}
+    case 'year-backup':{ui.backupFor=ui.taxYear;ui.moreOpen='backup';render();scrollToHead('backup');const n=document.getElementById('bk-pw')||document.getElementById('bk-plain');if(n)n.focus({preventScroll:true});break}
     case 'year-done':markYear(ui.taxYear,'csv');markYear(ui.taxYear,'tax');markYear(ui.taxYear,'backup');render();break;
-    case 'year-go':ui.taxYear=+b.dataset.y;ui.flashNext='';ui.jumpTo='jahr';go('mehr');break;
+    case 'year-go':ui.taxYear=+b.dataset.y;ui.flashNext='';ui.moreOpen='steuer';ui.jumpTo='steuer';go('mehr');break;
     case 'year-later':ui.yearHide=true;render();break;
     case 'csv-months':exportCsv('months');break;
     case 'csv-fixed':exportCsv('fixed');break;
@@ -1446,6 +1611,7 @@ function keepFocus(id){const n=document.getElementById(id);if(!n)return;const p=
 document.addEventListener('input',ev=>{
   const t=ev.target,d=ui.draft;
   if(t.id==='bon-text'){ui.paste=t.value;return}
+  if(t.id==='quick'){ui.quickText=t.value;if(ui.quickErr){ui.quickErr='';const e=t.closest('.quickwrap')?.querySelector('.err');if(e)e.remove()}return}
   if(t.id==='rule-filter'){ui.ruleFilter=t.value;const c=document.getElementById('prod-list');if(c)c.innerHTML=prodList();return}
   if(t.id==='search'){ui.search=t.value;const c=document.getElementById('search-res');if(c)c.innerHTML=searchResults();return}
   if(!d)return;
@@ -1456,13 +1622,19 @@ document.addEventListener('input',ev=>{
 });
 document.addEventListener('change',ev=>{
   const t=ev.target,d=ui.draft;
+  if((t.id==='fx-name'||t.id==='fx-cat')&&document.getElementById('fx-tax')){
+    const sel=document.getElementById('fx-tax'),hint=document.getElementById('fx-taxhint');
+    if(!sel.value||sel.dataset.auto){const sg=taxSuggest(val('fx-name'),val('fx-cat'));
+      if(sg){sel.value=sg;sel.dataset.auto='1';const box=document.getElementById('fx-taxbox');if(box)box.open=true;if(hint)hint.textContent=`Vorschlag: ${TAXKINDS[sg]}. Bitte prüfen.`}
+      else if(sel.dataset.auto){sel.value='';delete sel.dataset.auto;if(hint)hint.textContent=''}}
+    return}
+  if(t.id==='fx-tax'){delete t.dataset.auto;const hint=document.getElementById('fx-taxhint');if(hint)hint.textContent='';return}
   if(t.dataset.tpl){const x=state.templates.find(q=>q.id===t.dataset.tpl);if(x&&t.value.trim()){x.name=t.value.trim().slice(0,40);persist()}return}
-  if(t.id==='photo'){const f=t.files&&t.files[0];t.value='';runOCR(f);return}
+  if(t.id==='photo'){const fs=t.files?[...t.files]:[];t.value='';if(fs.length===1){ui.queue=null;ui.qTotal=0;runOCR(fs[0])}else startQueue(fs);return}
   if(t.id==='tax-year'){ui.taxYear=+t.value;render();return}
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
   if(t.id==='use-budgets'){state.useBudgets=t.checked;persist();render();return}
   if(t.dataset.budget){const v=toNum(t.value);if(t.value.trim()&&!isNaN(v)&&v>0)state.budgets[t.dataset.budget]=r2(v);else delete state.budgets[t.dataset.budget];persist();t.value=state.budgets[t.dataset.budget]?fmtIn(state.budgets[t.dataset.budget]):'';return}
-  if(t.id==='fx-kind'){ui.fixedKind=t.value;document.querySelectorAll('#fixed-form .outonly').forEach(n=>n.hidden=t.value==='in');return}
   if(t.dataset.rule){const k=t.dataset.key;if(t.dataset.rule==='p')state.rules.products[k]=t.value;else if(state.rules.merchants[k])state.rules.merchants[k].cat=t.value;persist();return}
   if(t.id==='bk-plain'){ui.plainBackup=t.checked;return}
   if(t.id==='import-file'&&t.files&&t.files[0]){const r=new FileReader();r.onload=()=>{const txt=String(r.result);let enc=false;try{enc=JSON.parse(txt).kassensturz==='backup-enc-1'}catch(e){}
@@ -1481,11 +1653,12 @@ document.addEventListener('change',ev=>{
 });
 document.addEventListener('submit',ev=>{
   const f=ev.target;ev.preventDefault();
+  if(f.id==='quick-form'){submitQuick();return}
   if(f.id==='unlock-form'){
     if(ui.lockUntil>Date.now())return;
     const pin=val('unlock-pin');
     pinOk(pin).then(ok=>{
-      if(ok&&pin){ui.locked=false;ui.lockFails=0;ui.lockErr='';render();maybeTutorial();return}
+      if(ok&&pin){ui.locked=false;ui.lockFails=0;ui.lockErr='';render();maybeTutorial();focusAction();return}
       ui.lockFails++;ui.lockErr='Falsche PIN.';
       if(ui.lockFails>=5){ui.lockUntil=Date.now()+30000*Math.pow(2,Math.min(ui.lockFails-5,5));setTimeout(()=>{if(ui.locked)render()},ui.lockUntil-Date.now()+50)}
       render()});
@@ -1514,7 +1687,7 @@ document.addEventListener('submit',ev=>{
       Object.assign(o,{contractEnd:cend,noticeVal:nv,noticeUnit:val('fx-nunit'),renew:+val('fx-renew')||1})}
     else Object.assign(o,{contractEnd:'',noticeVal:null,noticeUnit:'',renew:null});
     if(ui.fixedEdit){const e=state.fixed.find(x=>x.id===ui.fixedEdit);if(e){Object.assign(e,o);delete e.example}}else state.fixed.push({id:uid(),...o});
-    ui.fixedEdit=null;ui.fixedKind=kind;ui.err='';persist();render();return}
+    ui.fixedEdit=null;ui.fxForm=null;ui.fixedKind=kind;ui.err='';persist();render();return}
   if(f.id==='goal-form'){
     const name=val('g-name').trim(),tRaw=val('g-target').trim(),rRaw=val('g-rate').trim(),sRaw=val('g-start').trim();
     const target=tRaw?toNum(tRaw):0,rate=rRaw?toNum(rRaw):0,startAmt=sRaw?toNum(sRaw):0;
@@ -1533,9 +1706,9 @@ document.addEventListener('submit',ev=>{
     ui.depositFor=null;ui.err='';persist();render();return}
   if(f.id==='cat-form'){
     const n=document.getElementById('cat-name').value.trim();if(!n)return;
-    if(state.categories.some(c=>c.name.toLowerCase()===n.toLowerCase())){return}
-    const palette=['#4f8a3c','#b5487a','#c97a1a','#3c7fb8','#6a4fb5','#2a9a8a','#a15c3a'];
-    state.categories.splice(state.categories.length-1,0,{id:'c'+uid(),name:n,color:palette[state.categories.length%palette.length]});
+    if(state.categories.some(c=>c.name.toLowerCase()===n.toLowerCase())){ui.flash=`„${n}“ gibt es schon.`;render();return}
+    const nc={id:'c'+uid(),name:n.slice(0,30),color:freeColor()};
+    state.categories.splice(state.categories.length-1,0,nc);ui.catEdit=nc.id;ui.catColor=null;ui.flash='';
     persist();render();return}
 });
 
@@ -1550,9 +1723,13 @@ async function checkShared(){
   history.replaceState(null,'',location.pathname+'#beleg');
   try{
     const c=await caches.open('kassensturz-share');
-    const img=await c.match('shared-image'),txt=await c.match('shared-text');
-    await c.delete('shared-image');await c.delete('shared-text');
-    if(img){const blob=await img.blob();runOCR(new File([blob],'geteilt',{type:blob.type||'image/jpeg'}));return}
+    const cntR=await c.match('shared-count'),n=cntR?parseInt(await cntR.text(),10)||0:0,files=[];
+    for(let i=0;i<n;i++){const r=await c.match('shared-image-'+i);if(r){const blob=await r.blob();files.push(new File([blob],'geteilt-'+(i+1),{type:blob.type||'image/jpeg'}))}await c.delete('shared-image-'+i)}
+    const img=await c.match('shared-image');if(img){const blob=await img.blob();files.push(new File([blob],'geteilt',{type:blob.type||'image/jpeg'}))}
+    const txt=await c.match('shared-text');
+    await c.delete('shared-image');await c.delete('shared-text');await c.delete('shared-count');
+    if(files.length===1){runOCR(files[0]);return}
+    if(files.length>1){startQueue(files);return}
     if(txt){ui.paste=await txt.text();ui.tab='beleg';parseNow()}
   }catch(e){}
 }
@@ -1619,9 +1796,11 @@ document.addEventListener('touchcancel',()=>{tabSw=null;main.style.transform=''}
 function maybeTutorial(){if(!state.prefs.tutorialDone&&!ui.locked&&!ui.tut){ui.tut={topic:'start',i:0};render()}}
 ui.locked=!!getLock();
 {const q=new URLSearchParams(location.search);const a=q.get('action');
-  if(a==='photo'||a==='text'){ui.action=a;history.replaceState(null,'',location.pathname+'#beleg')}}
+  if(a==='photo'||a==='text'){ui.action=a;history.replaceState(null,'',location.pathname+'#beleg')}
+  if(a==='quick'){ui.action='quick';history.replaceState(null,'',location.pathname+'#monat')}}
 route();
 maybeTutorial();
-if(ui.action){const n=document.getElementById(ui.action==='photo'?'photo-btn':'bon-text');if(n&&!ui.locked)n.focus()}
+function focusAction(){if(!ui.action||ui.locked||ui.tut)return;const n=document.getElementById(ui.action==='photo'?'photo-btn':ui.action==='quick'?'quick':'bon-text');if(n)n.focus();if(ui.action==='quick')ui.action=''}
+focusAction();
 checkShared();
 })();

@@ -32,11 +32,11 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 
 ## Kurzbefehle auf den Startbildschirm legen
 1. Lange auf das Kassensturz-Icon drücken.
-2. Es erscheinen „Bon fotografieren“ und „Beleg eintippen“.
-3. Einen davon gedrückt halten und auf den Startbildschirm ziehen. Ein Tipp darauf öffnet dann direkt die Belegerfassung.
+2. Es erscheinen „Bon fotografieren“ und „Schnelleingabe“.
+3. Einen davon gedrückt halten und auf den Startbildschirm ziehen. Ein Tipp darauf öffnet direkt die Fotoauswahl bzw. das Schnelleingabe-Feld.
 
 ## Tipps
-- Bon-Foto direkt teilen: In der Galerie auf „Teilen“ → „Kassensturz“.
+- Bon-Foto direkt teilen: In der Galerie auf „Teilen“ → „Kassensturz“. Du kannst auch mehrere Fotos oder PDFs auf einmal markieren, die App geht sie dann nacheinander durch.
 - Die Fotoerkennung lädt beim ersten Mal einmalig deutsche Sprachdaten (Internet nötig).
 - Unter „Mehr“ regelmäßig „Backup herunterladen“ und die Datei z. B. in Google Drive legen.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
