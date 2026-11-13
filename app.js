@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.6.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.8.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -78,8 +78,56 @@ const KW={
 
 /* ---------- Speicher ---------- */
 let storageOk=true;
-function load(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null}catch(e){storageOk=false;return null}}
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(state));storageOk=true}catch(e){storageOk=false}requestPersist()}
+let loadBroken=false;
+function load(){
+  let s=null;
+  try{s=localStorage.getItem(KEY);return s?JSON.parse(s):null}
+  catch(e){storageOk=false;
+    // Unlesbare Daten nicht überschreiben lassen: beiseitelegen und Sicherheitskopie anbieten
+    if(s){loadBroken=true;try{localStorage.setItem(KEY+'-defekt',s)}catch(e2){}}
+    return null}
+}
+function persist(){
+  try{
+    // Beim ersten Speichern am Tag den bisherigen Stand als Sicherheitskopie ablegen (die letzten drei bleiben)
+    const day=today(),last=localStorage.getItem(SNAPDAY);
+    if(last!==day){const old=localStorage.getItem(KEY);localStorage.setItem(SNAPDAY,day);
+      if(old&&old.length>2)snapPut(last||addDays(day,-1),old).then(loadSnaps).catch(()=>{})}
+    localStorage.setItem(KEY,JSON.stringify(state));storageOk=true}
+  catch(e){storageOk=false}
+  requestPersist()}
+/* Sicherheitskopien liegen getrennt vom normalen Speicher (IndexedDB) */
+const SNAPDAY='kassensturz-snapday';
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('kassensturz-safe',1);r.onupgradeneeded=()=>r.result.createObjectStore('snaps');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+function idbDo(db,mode,fn){return new Promise((res,rej)=>{const tx=db.transaction('snaps',mode),q=fn(tx.objectStore('snaps'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error)})}
+async function snapPut(day,json){
+  const db=await idb();await idbDo(db,'readwrite',st=>st.put({day,json,at:Date.now()},day));
+  const keys=(await idbDo(db,'readonly',st=>st.getAllKeys())).sort();
+  for(const k of keys.slice(0,-3))await idbDo(db,'readwrite',st=>st.delete(k));
+  db.close()}
+async function snapGet(day){const db=await idb();const r=await idbDo(db,'readonly',st=>st.get(day));db.close();return r}
+async function loadSnaps(){
+  try{const db=await idb();const all=await idbDo(db,'readonly',st=>st.getAll());db.close();
+    ui.snaps=all.sort((a,b)=>b.day.localeCompare(a.day)).map(x=>{let n=0;try{n=(JSON.parse(x.json).receipts||[]).filter(r=>!r.example).length}catch(e){}return {day:x.day,n}});
+    if(loadBroken&&ui.snaps.length&&!ui.rescueDone){ui.rescue=true;render()}
+    else if(ui.tab==='mehr'&&ui.moreOpen==='backup')render()}
+  catch(e){ui.snaps=[]}}
+async function snapRestore(day){
+  try{const r=await snapGet(day);if(!r)throw 0;const obj=JSON.parse(r.json);
+    // den jetzigen Stand vorher selbst sichern, damit nichts verloren geht
+    try{const cur=localStorage.getItem(KEY);if(cur&&!loadBroken)await snapPut(today()+' (vor Zurückholen)',cur)}catch(e){}
+    state=migrate(obj);loadBroken=false;ui.rescue=false;ui.rescueDone=true;ui.snapConfirm=null;persist();
+    ui.flash=`Stand vom ${fmtD(day.slice(0,10))} zurückgeholt.`;await loadSnaps();render()}
+  catch(e){ui.snapConfirm=null;ui.flash='Die Sicherheitskopie ließ sich nicht lesen.';render()}}
+function snapHtml(){
+  const sn=ui.snaps||[];
+  return `<h3>Automatische Sicherheitskopien</h3>
+  <p class="muted small">Die App legt beim ersten Ändern am Tag den vorherigen Stand ab und behält die letzten drei. Das hilft bei Fehlern, aber nicht bei verlorenem Handy oder gelöschten Browserdaten. Dafür brauchst du das Backup oben.</p>
+  ${sn.length?`<div class="list">${sn.map(x=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) auto"><span>Stand vom <b>${esc(fmtD(x.day.slice(0,10)))}</b>${x.day.length>10?esc(x.day.slice(10)):''} · ${x.n} ${x.n===1?'Beleg':'Belege'}</span>
+    ${ui.snapConfirm===x.day?`<span class="row"><button class="danger" data-act="snap-yes" data-day="${esc(x.day)}">Ja, zurückholen</button><button data-act="snap-no">Abbrechen</button></span>`:`<button data-act="snap-ask" data-day="${esc(x.day)}">Zurückholen</button>`}</div>`).join('')}</div>
+    ${ui.snapConfirm?`<p class="small" style="color:var(--warn);font-weight:600">Der jetzige Stand wird durch den älteren ersetzt. Er wird vorher selbst als Sicherheitskopie abgelegt.</p>`:''}`
+  :`<div class="list"><div class="empty">Noch keine Sicherheitskopie. Die erste entsteht morgen beim ersten Ändern.</div></div>`}`;
+}
 let persistAsked=false,persistGranted=null;
 function requestPersist(){
   if(persistAsked||!navigator.storage||!navigator.storage.persist)return;persistAsked=true;
@@ -125,6 +173,7 @@ function migrate(s){
   s.yearExport=s.yearExport||{};
   s.templates=Array.isArray(s.templates)?s.templates:[];s.prefs=s.prefs||{};
   s.budgets=s.budgets||{};s.useBudgets=!!s.useBudgets;s.v=3;
+  s.kasse=s.kasse&&typeof s.kasse==='object'?s.kasse:{};
   return s;
 }
 let state=migrate(load()||seed());
@@ -193,12 +242,14 @@ const contracts=()=>state.fixed.filter(f=>f.kind!=='in').map(f=>({f,c:contractIn
 function rateFor(g,ym){let a=0;(g.rates||[]).slice().sort((x,y)=>x.from.localeCompare(y.from)).forEach(r=>{if(r.from<=ym)a=+r.amount||0});return a}
 function goalBalance(g,upTo){
   upTo=upTo||thisYM();let sum=state.deposits.filter(d=>d.goalId===g.id&&d.date.slice(0,7)<=upTo).reduce((a,d)=>a+(+d.amount||0),0);
+  // Rücklage: daraus bezahlte Belege gehen ab
+  if(g.pot)state.receipts.forEach(r=>{if(r.pot===g.id&&r.date&&r.date.slice(0,7)<=upTo)sum-=rTotal(r)});
   const rs=(g.rates||[]).map(r=>r.from).sort();if(rs.length){for(let m=rs[0];m<=upTo;m=addMonths(m,1))sum+=rateFor(g,m)}
   return r2(sum);
 }
 function savedIn(ym){
   let s=0;state.goals.forEach(g=>s+=rateFor(g,ym));
-  state.deposits.forEach(d=>{if(d.date.startsWith(ym))s+=+d.amount||0});return r2(s);
+  state.deposits.forEach(d=>{if(d.date.startsWith(ym)&&!d.start)s+=+d.amount||0});return r2(s);   // Startguthaben war schon da und zählt nicht als Sparen dieses Monats
 }
 function goalInfo(g){
   const bal=goalBalance(g),rate=rateFor(g,thisYM()),target=+g.target||0;
@@ -219,7 +270,9 @@ function monthStats(ym,catF){
     if(catF&&f.cat!==catF)return;fixOut+=v;by[f.cat]=(by[f.cat]||0)+v});
   rs.forEach(r=>r.items.forEach(i=>{if(catF&&i.cat!==catF)return;const v=+i.amount||0;varOut+=v;by[i.cat]=(by[i.cat]||0)+v}));
   const saved=catF?0:savedIn(ym);
-  return {rs,inc,fixOut,varOut,out:fixOut+varOut,by,saved};
+  // aus Rücklagen bezahlte Belege belasten das „Übrig“ des Monats nicht
+  let potPaid=0;if(!catF)rs.forEach(r=>{if(r.pot&&state.goals.some(g=>g.pot&&g.id===r.pot))potPaid+=rTotal(r)});
+  return {rs,inc,fixOut,varOut,out:fixOut+varOut,by,saved,potPaid:r2(potPaid),left:inc-fixOut-varOut-saved+potPaid};
 }
 
 /* ---------- Erkennung ---------- */
@@ -260,25 +313,67 @@ function classify(name,mi){
   return {cat:'',src:'',flag:true,suggest:mi.cat||null};
 }
 
-const SKIP=/(summe|gesamt|zu zahlen|\btotal\b|endbetrag|rechnungsbetrag|zahlbetrag|mwst|\bust\b|ust-|netto|brutto|steuer|gegeben|geg\.|r(ü|ue)ckgeld|zur(ü|ue)ck|\bbar\b|kartenzahlung|girocard|ec[- ]?karte|visa|mastercard|maestro|paypal|kreditkarte|bon-?nr|beleg|kasse\b|terminal|trace|tse|uhrzeit|datum|steuer-?nr|ust-?id|filiale|tel\.|telefon|fax\b|www\.|\.de\b|vielen dank|kundenbeleg|kundenkarte|payback|punkte|trinkgeld|subtotal|tax\b|vat\b|shipping|versandkosten|^betrag\b|umsatz|autorisier|quittung|kontaktlos|approved|anwendung|zahlbar|f(ä|ae)llig|\biban\b|\bbic\b|kundennummer|kunden-?nr|rechnungsnummer|rechnungs-?nr|bestellnummer|auftragsnummer|abrechnungszeitraum|zzgl|zuz(ü|ue)glich|inkl\.?\s*mwst|enthaltene|bevorratung|zahlungsziel|(ü|ue)berweis|abgebucht|lastschrift|bankverbindung|skonto|entspricht|unktestand|gesammelt|einl(ö|oe)sbar)/i;
-const TOTAL=/(summe|gesamtbetrag|gesamtsumme|gesamtpreis|gesamt\b|zu zahlen|endbetrag|rechnungsbetrag|zahlbetrag|bestellsumme|order total|grand total|^total\b|\btotal:|[a-zäöü]{1,4}(amt|ant|arnt)betrag)/i;
-const PAYLINE=/(visa|girocard|ec[- ]?karte|mastercard|maestro|kartenzahlung|kreditkarte|paypal|^betrag\b|brutto)/i;
+const SKIP=/(summe|gesamt|zu zahlen|\btotal\b|endbetrag|rechnungsbetrag|zahlbetrag|mwst|\bust\b|ust-|netto|brutto|steuer|gegeben|geg\.|r(ü|ue)ckgeld|zur(ü|ue)ck|\bbar\b|kartenzahlung|girocard|ec[- ]?karte|visa|mastercard|maestro|paypal|kreditkarte|bon-?nr|beleg|kasse\b|terminal|trace|tse|uhrzeit|datum|steuer-?nr|ust-?id|filiale|tel\.|telefon|fax\b|www\.|\.de\b|vielen dank|kundenbeleg|kundenkarte|payback|punkte|subtotal|tax\b|vat\b|shipping|versandkosten|^betrag\b|umsatz|autorisier|quittung|kontaktlos|approved|anwendung|zahlbar|f(ä|ae)llig|\biban\b|\bbic\b|kundennummer|kunden-?nr|rechnungsnummer|rechnungs-?nr|bestellnummer|auftragsnummer|abrechnungszeitraum|zzgl|zuz(ü|ue)glich|inkl\.?\s*mwst|enthaltene|bevorratung|zahlungsziel|(ü|ue)berweis|abgebucht|lastschrift|bankverbindung|skonto|entspricht|unktestand|gesammelt|einl(ö|oe)sbar|[1\[|il]?s[e£]\s*-\s*(start|stop|signatur|transaktion|zeitformat|serien)|signatur|ser\s*ien\s*nummer|zeitformat|kassen\s*-?\s*id\b|gesa(n|rn|nn)t\b|ec[- ]?cash|mit\s*pin|zahlungsbetrag|zahlungsempf|verwendungszweck|kontonummer|bankleitzahl|swift|registergericht|amtsgericht|gesch(ä|ae)ftsf(ü|ue)hr|\bhrb\b|seite\s*\d+\s*von|lieferservice@)/i;
+const TOTAL=/(summe|gesamtbetrag|gesamtsumme|gesamtpreis|gesamt\b|zu zahlen|endbetrag|rechnungsbetrag|zahlbetrag|zahlungsbetrag|\bgesa(?:n|rn|nn)t\b|bestellsumme|order total|grand total|^total\b|\btotal:|[a-zäöü]{1,4}(amt|ant|arnt)betrag)/i;
+const PAYLINE=/(visa|girocard|ec[- ]?cash|mit\s*pin|ec[- ]?karte|mastercard|maestro|kartenzahlung|kreditkarte|paypal|^betrag\b|brutto)/i;
 const NOTNAME=/^(verkauft|versand|geliefert|zustell|bestell|deine bestellung|ihre bestellung|menge|anzahl|lieferung|lieferdatum|r(ü|ue)ckgabe|artikel-?nr|art\.?-?nr|artikelnummer|preis|eur$|euro$|stk|gr(ö|oe)(ß|ss)e|farbe|variante|size|colou?r|qty|quantity|sold by|ships|delivered|arriving|order|einzelpreis|pos\.?\s|position\s|bezeichnung)/i;
-const QTY=/^\s*\d+([.,]\d+)?\s*(stk\.?|st\.?|kg|g)?\s*[x×*]\s*\d/i;
+const QTY=/^\s*\d+([.,]\d+)?\s*(stk\.?|st\.?|stück|kg|g|l|ltr\.?|liter)?\s*[x×*]\s*\d/i;
 const DISC=/(rabatt|preisvorteil|coupon|gutschein|nachlass|preisreduz|sofortrabatt|discount)/i;
 const DATE_RE=/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/g;
 const DGOOD=/(rechnungsdatum|rechnung vom|belegdatum|kaufdatum|bestelldatum|datum|\bvom\b)/i;
 const DBAD=/(liefer|leistung|zahlbar|f(ä|ae)llig|\bbis\b|abbuch|abgebucht|zeitraum|g(ü|ue)ltig|mhd|ablauf|geburt|startzeit|beendigung|signatur)/i;
 const DUE=/(zahlbar|f(ä|ae)llig|zahlungsziel|(ü|ue)berweis\w*|zahlung\s+bis|bezahlen\s+bis|begleichen)/i;
 
+// Abstand zweier Wörter (Anzahl vertauschter, fehlender oder zusätzlicher Zeichen)
+function lev(a,b){
+  if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+  let prev=new Array(n+1),cur=new Array(n+1);for(let j=0;j<=n;j++)prev[j]=j;
+  for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));[prev,cur]=[cur,prev]}
+  return prev[n];
+}
+// Summenzeile trotz Lesefehler erkennen („SUNME“, „Gesarnt“, „Gesamtbetnag“)
+const TOTALWORDS=['summe','gesamt','gesamtbetrag','gesamtsumme','endbetrag','endsumme'];
+function isTotalLine(line){
+  if(TOTAL.test(line))return true;
+  const w=(line.match(/^[^\p{L}]*(\p{L}{4,})/u)||[])[1];if(!w||!findPrice(line))return false;
+  const lw=w.toLowerCase();if(lw==='summer'||lw==='sommer')return false;
+  return TOTALWORDS.some(t=>Math.abs(t.length-lw.length)<=1&&lev(lw,t)<=(t.length>=9?2:1));
+}
+// Früher gespeicherte Produkte: Ein verlesener Name („Oatiy Haferdrink“) wird auf den bekannten zurückgeführt
+let knownCache=null;
+function knownProducts(){
+  if(knownCache&&knownCache.n===state.receipts.length)return knownCache.map;
+  const map=new Map();
+  state.receipts.forEach(r=>{if(r.example)return;const mk=normKey(r.merchant);r.items.forEach(i=>{const k=normKey(i.name);if(k.length<8)return;
+    let e=map.get(k);if(!e){e={key:k,name:i.name,m:new Set()};map.set(k,e)}e.m.add(mk)})});
+  knownCache={n:state.receipts.length,map};return map;
+}
+function similarKnown(name,merchant){
+  const k=normKey(name);if(k.length<8)return null;const map=knownProducts();if(map.has(k))return null;
+  const mk=normKey(merchant);let best=null,bd=1,second=1;
+  map.forEach(e=>{if(Math.abs(e.key.length-k.length)>4)return;
+    const lim=e.m.has(mk)?0.2:0.1,d=lev(k,e.key)/Math.max(k.length,e.key.length);
+    if(d<=lim){if(d<bd){second=bd;bd=d;best=e}else if(d<second)second=d}});
+  return best&&second-bd>=0.03?best:null;   // nur bei eindeutigem Treffer
+}
 function findPrice(line){
-  let m=line.match(/(?:EUR|€)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:,\d{3})*\.\d{2}|-?\d+[.,]\d{2})\s*[#*]{0,2}\s*(?:[A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
-  if(m) return {amt:toNum(m[1]),rest:line.slice(0,m.index)};
-  // Preis am Zeilenende, danach evtl. Währung und Steuerkennzeichen wie „B“, „1“, „#A*“ oder OCR-Reste wie „EURSA“
-  m=line.match(/(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2})(-?)\s*(?:€|EURO|EUR[A-Za-z]{0,3})?\s*[#*]{0,2}\s*(?:[A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
-  if(m){let a=toNum(m[1]);if(m[2]==='-')a=-Math.abs(a);return {amt:a,rest:line.slice(0,m.index)}}
+  let m=line.match(/(?:EUR|€)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:,\d{3})*\.\d{2}|-?\d+[.,]\d{2})\s*[#*]{0,2}\s*([A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
+  if(m) return {amt:toNum(m[1]),rest:line.slice(0,m.index),mark:(m[2]||'').toUpperCase()};
+  // Preis am Zeilenende, danach evtl. Währung (auch verlesen als „E“ oder „£“) und Steuerkennzeichen wie „B“, „1“, „#A*“
+  m=line.match(/(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2})(-?)\s*(?:€|£|EURO|EUR[A-Za-z]{0,3}|E(?=\s*$))?\s*[#*]{0,2}\s*([A-D]|[0-9])?\s*[#*]{0,2}\s*$/i);
+  if(m){let a=toNum(m[1]);if(m[2]==='-')a=-Math.abs(a);return {amt:a,rest:line.slice(0,m.index),mark:(m[3]||'').toUpperCase()}}
   return null;
 }
+// Typische Lesefehler in Preisen am Zeilenende: „1, 99“, „2 ,49“, „l,19“, „O,99“, „3,S9“
+function fixPrices(l){
+  l=l.replace(/(\d)\s?,\s?(\d{2})(?![\d.,])/g,'$1,$2');
+  return l.replace(/(^|\s)(-?[0-9OoIlS]{1,4})\s?[,.]\s?([0-9OoIlS]{2})(\s*(?:€|EUR)?\s*[A-D12]?\s*[*#]*)$/,(all,a,x,y,z)=>{
+    if(((x+y).match(/\d/g)||[]).length<2||!/[OoIlS]/.test(x+y))return all;
+    const f=t=>t.replace(/[Oo]/g,'0').replace(/[Il]/g,'1').replace(/S/g,'5');return a+f(x)+','+f(y)+z});
+}
+// Mengenzeile mit Gesamtpreis am Ende: „2 * 1,09   2,18 B“, „0,512 kg x 2,99 EUR/kg   1,53“
+const PAYWORD=/(karte\b|\bbar\b|gegeben|gutschein|bezahlt|zahlung|wechselgeld|r(ü|ue)ckgeld|\bcash\b|kredit|debit|guthaben|\bec\b)/i;
+const QTYTOTAL=/^\s*-?\d+(?:[.,]\d+)?\s*(?:stk\.?|st\.?|stück|kg|g|l|ltr\.?|liter)?\s*[x×*]\s*\d+[.,]\d{2,3}\s*[^\d\s]{0,10}(?:\s*\/\s*[^\d\s]{1,6})?\s+(-?\d+[.,]\d{2})\s*(?:€|EUR)?\s*([A-D]|[0-9])?\s*[*#]*\s*$/i;
 const letters=s=>(String(s).match(/[A-Za-zÄÖÜäöüß]/g)||[]).length;
 function cleanName(s){
   let n=s.replace(/\s*[x×]?\s*\d+[.,]\d+\s*(€|eur)\s*\/\s*[a-zA-Z²]+/gi,' ')   // Stückpreise wie „x 0,3290 €/kWh“
@@ -291,7 +386,7 @@ function cleanName(s){
       .replace(/\s+\d+([.,]\d+)?\s+(stk\.?|st\.?|std\.?|stunden|stück|kwh|tage?|m²|qm|lfm)\.?$/i,'')
       .replace(/\s+\d{1,3}$/,'').replace(/[\s:,-]+$/,'');
   }
-  return n.trim().slice(0,80);
+  return n.replace(/[\s'’‘”“"`´,;:_|~-]+$/,'').trim().slice(0,80);
 }
 function cleanMerchant(l){
   return l.split(/\s+[·•|]\s+|\s{3,}|,\s+|\s+-\s+\d/)[0].replace(/[^\p{L}\p{N}&'. -]/gu,'').replace(/\s{2,}/g,' ').trim().slice(0,40);
@@ -316,9 +411,73 @@ function findDue(lines,dateIso){
   }
   return '';
 }
-function parseReceipt(text){
-  // Störzeichen der Texterkennung am Zeilenanfang entfernen („= Betrag“, „- Visa“)
-  const lines=text.split(/\r?\n/).map(l=>l.replace(/\t/g,' ').replace(/^[^\p{L}\p{N}*€-]+/u,'').replace(/^[-–]\s+(?=\p{L})/u,'').trim()).filter(Boolean);
+// Betrag aus einem Tabellenfeld. Fehlt das Komma („798€“), ist das ein Lesefehler: Deutsche Belege drucken Preise immer mit Cent.
+// Darum nur ergänzen, wenn der Beleg sonst Cent-Beträge hat und ein €-Zeichen dransteht, und als unsicher markieren.
+function money(tok,comma){
+  const raw=String(tok||'').replace(/[)\]]+$/,'');const euro=/(€|EUR)$/i.test(raw);const t=raw.replace(/€|EUR/gi,'');
+  if(!t)return null;
+  if(/^-?\d{1,3}(\.\d{3})*,\d{2}$|^-?\d+[.,]\d{2}$/.test(t))return {v:toNum(t),exact:true};
+  if(comma&&euro&&/^-?\d{2,5}$/.test(t))return {v:parseInt(t,10)/100,exact:false};
+  return null;
+}
+const TAXMARK=/^([A-D]|AIB|A\/B|A\|B|[A-D]\))$/i;
+// Zeile einer Rechnungstabelle: Produkt · Menge · MwSt. · Einzelpreis · Gesamt
+function tableRow(line,comma){
+  const t=line.replace(/(\d)\s+€/g,'$1€').replace(/€?\s*\/\s*kg\b/gi,'€/kg').split(/\s+/).filter(Boolean);
+  if(t.length<3)return null;
+  const T=money(t.pop(),comma);if(!T)return null;
+  let U=null,perKg=false;const u=t[t.length-1]||'';
+  if(/\/kg$/i.test(u)){perKg=true;U=money(u.replace(/\/kg$/i,''),comma);t.pop()}
+  else if((U=money(u,comma)))t.pop();
+  else if(/^[^\d\s]{1,4}$/.test(u)&&TAXMARK.test(t[t.length-2]||''))t.pop();   // unlesbarer Einzelpreis
+  if(TAXMARK.test(t[t.length-1]||''))t.pop();
+  let q=null;const qt=(t[t.length-1]||'').replace(/[)\]]+$/,'');
+  if(t.length>1&&/^-?\d+([.,]\d+)?(g|kg|stk\.?|st\.?)?$/i.test(qt)){q=parseFloat(qt.replace(',','.'));if(/g$/i.test(qt)||perKg)q=null;t.pop()}
+  if(!t.length)return null;
+  // „2508“ ist meist „250g“ (das g wird gern als 8 gelesen)
+  let name=t.join(' ').replace(/\b(\d{2,4})8\.?$/,'$1g').replace(/\.$/,'');
+  name=cleanName(name);if(letters(name)<2)return null;
+  let amt=T.v,check=!T.exact;
+  if(U&&q!=null&&Number.isInteger(q)&&q!==0){
+    const calc=r2(Math.abs(q)*U.v);
+    if(Math.abs(calc-Math.abs(T.v))<0.011)check=false;          // Menge × Einzelpreis bestätigt den Betrag
+    else if(T.exact)check=!U.exact?false:true;
+    else if(U.exact){amt=calc;check=false}                      // Gesamt unlesbar, aus Einzelpreis berechnet
+  }
+  if((q!=null&&q<0)||T.v<0)amt=-Math.abs(amt);
+  return {name,amt:r2(amt),check};
+}
+// Drei Beträge wie in einer MwSt.-Zeile: Brutto = MwSt. + Netto, egal in welcher Reihenfolge gedruckt
+function triple(a){
+  if(a.length<3)return null;const [x,y,z]=a.slice(-3);
+  if(Math.abs(z-(x+y))<0.011)return {gross:z,net:x};   // Netto · MwSt. · Brutto
+  if(Math.abs(x-(y+z))<0.011)return {gross:x,net:z};   // Brutto · MwSt. · Netto
+  return null;
+}
+// Summe geht nicht auf: Gibt es genau eine Position, bei der eine einzige falsch gelesene Ziffer alles erklärt?
+// Die MwSt.-Tabelle (Summe je Steuerkennzeichen) grenzt ein, in welcher Gruppe der Fehler steckt.
+function suggestFix(items,total,groups){
+  const sum=r2(items.reduce((a,x)=>a+x.amount,0)),diff=r2(total-sum);
+  if(Math.abs(diff)<0.011||!items.length)return null;
+  let bad=null;const gk=Object.keys(groups||{});
+  if(gk.length&&items.every(x=>x.mark)){bad=new Set();
+    gk.forEach(k=>{const gs=r2(items.filter(x=>x.mark===k).reduce((a,x)=>a+x.amount,0));if(Math.abs(gs-groups[k])>0.011)bad.add(k)});
+    if(!bad.size)bad=null}
+  const LIKE={'0':'689','1':'74','2':'7','3':'895','4':'19','5':'63','6':'805','7':'12','8':'3609','9':'483'};
+  const cand=[];
+  items.forEach((it,i)=>{if(bad&&!bad.has(it.mark))return;const want=r2(it.amount+diff);if(want<=0)return;
+    const a=it.amount.toFixed(2),b=want.toFixed(2);if(a.length!==b.length)return;
+    let d=0,pos=-1;for(let k=0;k<a.length;k++)if(a[k]!==b[k]){d++;pos=k}
+    if(d===1)cand.push({i,amount:want,like:(LIKE[a[pos]]||'').includes(b[pos])})});
+  const likely=cand.filter(c=>c.like);
+  const pick=likely.length===1?likely[0]:cand.length===1?cand[0]:null;
+  return pick?{i:pick.i,amount:pick.amount}:null;
+}
+function parseReceipt(text,opts){
+  // Störzeichen der Texterkennung am Zeilenanfang entfernen („= Betrag“, „- Visa“), Lesefehler in Preisen glätten
+  const lines=[],lowIdx=new Set(),low=opts&&opts.low;
+  text.split(/\r?\n/).forEach(raw=>{const l=fixPrices(raw.replace(/\t/g,' ').replace(/(\d)\s+[;:.,|'’‘`´_~°]{1,3}\s*$/,'$1').replace(/^[^\p{L}\p{N}*€-]+/u,'').replace(/^[-–]\s+(?=\p{L})/u,'').trim());
+    if(l){if(low&&low.has(raw.trim()))lowIdx.add(lines.length);lines.push(l)}});
   let merchant='',total=null,netAmt=null,vatAmt=null;
   const head=lines.slice(0,8).join('\n');
   // Rechnungs- und Ladentypen nur im Kopf suchen, bekannte Händler auch im ganzen Text
@@ -331,57 +490,136 @@ function parseReceipt(text){
   }
   const dt=pickDate(lines);
   const votes={};const vote=(a,w)=>{if(!(a>0))return;const k=r2(a).toFixed(2);votes[k]=(votes[k]||0)+w};
-  const items=[];let pending=null;
+  const items=[],orph=[];let pending=null,pendingAt=-9,vatNet=0,nameBelow=false,headBelow=false,seenTotal=false;const groups={};
+  const tableMode=lines.some(l=>/menge/i.test(l)&&/preis/i.test(l)&&/gesamt|betrag|summe/i.test(l));
+  const comma=(text.match(/\d,\d{2}\b/g)||[]).length>=3;
+  // Abzug (Rabatt, Storno, Leergut): Storno löscht die passende Position, sonst mindert er die Position davor
+  const addNeg=(a,name)=>{
+    const words=normKey(name).split(' ').filter(w=>w.length>=4&&!/STORNO|RABATT/.test(w));
+    for(let k=items.length-1;k>=0&&words.length;k--){const it=items[k];if(Math.abs(it.amount+a)<0.005&&words.some(w=>normKey(it.name).includes(w))){items.splice(k,1);return}}
+    if(items.length){const it=items[items.length-1];it.amount=r2(it.amount+a);if(Math.abs(it.amount)<0.005)items.pop()}
+    else items.push({name:name||'Rabatt',amount:a})};
+  // Kopf wie „Artikelnr. Menge Einzel … Gesamt“ und darunter „Bezeichnung“: Name steht unter der Preiszeile
+  lines.forEach((l,i)=>{if(i&&/^bezeichnung\b/i.test(l)&&/artikel|menge|einzel/i.test(lines[i-1]))nameBelow=headBelow=true});
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    if(TOTAL.test(line)&&!/zwischen|subtotal/i.test(line)){
+    if(isTotalLine(line)&&!/zwischen|subtotal/i.test(line)){
+      const ta=(line.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2}/g)||[]).map(toNum),tr=triple(ta);
+      if(tr&&tr.gross>0){seenTotal=true;total=tr.gross;vote(tr.gross,3);if(netAmt==null)netAmt=tr.net;pending=null;continue}
       let p=findPrice(line);
       if(!p&&lines[i+1]){const q=findPrice(lines[i+1]);if(q&&letters(q.rest)===0)p=q}
-      if(p&&p.amt>0){if(/netto/i.test(line))netAmt=p.amt;else{total=p.amt;vote(p.amt,3)}}
+      if(p&&p.amt>0){seenTotal=true;if(/netto/i.test(line))netAmt=p.amt;else{total=p.amt;vote(p.amt,3)}}   // Kopfzeilen wie „… Gesamt“ ohne Betrag zählen nicht
       pending=null;continue;
     }
     // Zahlungs- und Steuerzeilen: Betrag merken, aber nicht als Position
     const amts=(line.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2}/g)||[]).map(toNum);
-    if(/%/.test(line)&&amts.length>=3){vote(amts[amts.length-1],1);pending=null;continue}
+    if(/%/.test(line)&&amts.length>=3){const tr=triple(amts)||{gross:amts[amts.length-1],net:amts[amts.length-3]};vote(tr.gross,1);vatNet+=tr.net;
+      const gm=line.match(/^([A-D]|[1-4])\s*[=:]?\s*\d{1,2}(?:[.,]\d+)?\s*%/i);if(gm)groups[gm[1].toUpperCase()]=tr.gross;pending=null;continue}
     if(/netto/i.test(line)&&amts.length&&!/%/.test(line))netAmt=amts[amts.length-1];
     if(/(mwst|umsatzsteuer|ust\b)/i.test(line)&&amts.length===1&&/zzgl|\+|zuz/i.test(line))vatAmt=amts[0];
     if(PAYLINE.test(line)&&amts.length){vote(amts[amts.length-1],1);pending=null;continue}
+    {const qm=line.match(QTYTOTAL);
+      if(qm&&!seenTotal){const a=toNum(qm[1]);
+        // Name steht in der Zeile darüber; fehlt er, gehört die Zeile als Mengenangabe zur Position davor
+        if(pending&&i-pendingAt<=1){if(a<0)addNeg(a,cleanName(pending));else if(a>0)items.push({at:i,name:cleanName(pending),amount:a,mark:(qm[2]||'').toUpperCase(),check:lowIdx.has(i)});pending=null}
+        // Artikelzeile nennt nur den Einzelpreis, die Mengenzeile darunter den Gesamtpreis („2 ST x 3,99   7,98“)
+        else if(a>0&&items.length&&items[items.length-1].at===i-1)items[items.length-1].amount=a;
+        continue}}
     if(QTY.test(line)) continue;
     if(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/.test(line)||/^[A-D]\s*[:=]/.test(line)) continue;
     const disc=DISC.test(line);
     if(SKIP.test(line)&&!disc){pending=null;continue}
-    const p=findPrice(line);
-    if(!p){if(letters(line)>=3&&!NOTNAME.test(line))pending=line;continue}
+    // lange Buchstaben-Ziffern-Folgen sind Signaturen oder Seriennummern, keine Artikel
+    if(/(?=[0-9A-Za-z]*\d)(?=[0-9A-Za-z]*[A-Za-z])[0-9A-Za-z]{14,}/.test(line)){pending=null;continue}
+    // Nach der Summenzeile sind Gutscheine und Abzüge Zahlungsarten, keine Rabatte auf Artikel mehr
+    if(seenTotal&&(disc||/^[^\d]*-\s*\d+[.,]\d{2}\s*(€|EUR)?\s*$/i.test(line))){pending=null;continue}
+    // … und Zeilen wie „Karte 9,02“ oder „Geschenkkarte 10,00“ sind Zahlungen
+    if(seenTotal&&amts.length&&!/trinkgeld|^tip\b/i.test(line)&&(PAYWORD.test(line)||total!=null&&Math.abs(amts[amts.length-1]-total)<0.005&&!(pending&&i-pendingAt===1))){vote(amts[amts.length-1],1);pending=null;continue}
+    if(tableMode&&!disc){const r=tableRow(line,comma);
+      if(r){pending=null;if(!r.amt)continue;if(r.amt<0)addNeg(r.amt,r.name);else items.push({at:i,name:r.name,amount:r.amt,check:r.check||lowIdx.has(i)});continue}}
+    let p=findPrice(line);
+    // Bauart „Name unten“: Preiszeile mit Artikelnummer, deren Kommas nicht gelesen wurden („396102084 1 459 119“)
+    if(!p&&nameBelow&&comma&&/^\d{3,}\s/.test(line)&&letters(line)<2){const m=line.match(/\s(\d{3,4})(?=\s|$)/);if(m)p={amt:parseInt(m[1],10)/100,rest:'',check:true}}
+    // Preis ohne Komma am Zeilenende („Hack vegan 798€“): nur bei Belegen mit Cent-Beträgen, als unsicher markiert
+    if(!p&&comma){const m=line.match(/\s(-?\d{2,5})\s*€\s*[A-D]?\s*$/);if(m&&letters(line.slice(0,m.index))>=3)p={amt:parseInt(m[1],10)/100,rest:line.slice(0,m.index),check:true}}
+    // Preis vorn, Name dahinter („1,50  Zeitung“)
+    if(!p){const m=line.match(/^(-?\d+,\d{2})\s*(?:€|EUR)?\s+(\p{L}[\p{L}\p{N} .&'-]{2,})$/u);if(m&&!/^\s*(kg|g|l|m|cm|stk|st)\b/i.test(m[2]))p={amt:toNum(m[1]),rest:m[2],mark:''}}
+    if(!p){
+      // Zeile ohne lesbaren Preis merken: Fehlt am Ende genau ihr Betrag, lässt er sich aus der Summe errechnen
+      if(!seenTotal){
+        if(nameBelow&&/^\d{3,}\s/.test(line)&&letters(line)<2){const nx=lines[i+1]||'';orph.push({at:i,name:letters(nx)>=3&&!findPrice(nx)&&!SKIP.test(nx)?cleanName(nx):'Artikel',digits:line.replace(/^\d+\s/,'').replace(/\D/g,'')})}
+        else if(!nameBelow&&items.length&&letters(line)>=3&&/\d\D*\d\D*\d/.test(line)&&!NOTNAME.test(line)&&!SKIP.test(line))orph.push({at:i,name:cleanName(line.replace(/[\d.,\s]+[A-D]?\s*$/,'')),digits:(line.match(/[\d.,\s]+[A-D]?\s*$/)||[''])[0].replace(/\D/g,'')})}
+      if(!nameBelow&&letters(line)>=3&&!NOTNAME.test(line)){pending=line;pendingAt=i}continue}
     let name=cleanName(p.rest);
+    // Bauart „Name unten“: Die Preiszeile enthält nur Nummern, die Bezeichnung steht immer darunter
+    if(headBelow&&p.amt>0&&!disc&&letters(p.rest)<3){const nx=lines[i+1]||'';
+      const ok2=letters(nx)>=3&&!findPrice(nx)&&!SKIP.test(nx)&&!TOTAL.test(nx)&&!NOTNAME.test(nx);
+      let amt=p.amt,chk=!!p.check||lowIdx.has(i);
+      const nums=(line.match(/\d+,\d{2}(?!\d)/g)||[]).map(toNum),qm=line.match(/^\d{3,}\s+(\d{1,3})\s/);
+      if(nums.length>=2&&qm){const calc=r2(+qm[1]*nums[0]);if(calc>0&&Math.abs(calc-amt)>0.011&&(amt>calc*5||amt<calc/5)){amt=calc;chk=true}}
+      items.push({at:i,name:ok2?cleanName(nx):'Artikel',amount:amt,check:chk,mark:''});if(ok2)i++;pending=null;continue}
+    // Mengenzeile oder unlesbarer Rest: Der Name steht in der Zeile direkt darüber
+    if(pending&&i-pendingAt===1&&(items.length||QTY.test(line)||/^\s*-?\d+(?:[.,]\d+)?\s*(kg|g|l|stk|st)\b/i.test(line))&&!/\p{L}{4,}/u.test(name)&&!/str\.|stra(ß|ss)e|\b\d{5}\b|gmbh|\btel\b/i.test(pending))name=cleanName(pending);
+    // Name über zwei Zeilen: Die Preiszeile setzt den Namen der Zeile darüber fort („verzinkt 200 Stk   7,95“)
+    if(pending&&i-pendingAt===1&&!/str\.|stra(ß|ss)e|\b\d{5}\b|gmbh|\btel\b/i.test(pending)&&/^\p{Ll}/u.test(name)&&/^\p{Lu}/u.test(pending.trim())&&letters(name)>=2)name=cleanName(pending+' '+p.rest);
+    // … oder beginnt mit einer Größenangabe („Bio Vollkorn Spaghetti“ / „500g Packung   1,49“)
+    if(pending&&i-pendingAt===1&&!disc&&/^\d+(?:[.,]\d+)?\s?(g|kg|ml|l|cl|er|stk|st|m|cm)\b/i.test(p.rest.trim())&&!/str\.|stra(ß|ss)e|\b\d{5}\b|gmbh|\btel\b|\d{4,}/i.test(pending)&&cleanMerchant(pending)!==merchant)name=cleanName(pending+' '+p.rest);
     if(disc||p.amt<0){
-      const a=-Math.abs(p.amt);
-      if(items.length) items[items.length-1].amount=r2(items[items.length-1].amount+a);
-      else items.push({name:name||'Rabatt',amount:a});
+      addNeg(-Math.abs(p.amt),name);
       pending=null;continue;
     }
-    if(letters(name)<2||NOTNAME.test(name)){if(pending)name=cleanName(pending);else continue}
+    if(letters(name)<2||NOTNAME.test(name)){
+      // Bons, bei denen die Bezeichnung unter der Preiszeile steht (Artikelnr. · Menge · Preis, darunter der Name)
+      const nx=lines[i+1]||'';
+      const nxOk=letters(nx)>=3&&!findPrice(nx)&&!SKIP.test(nx)&&!TOTAL.test(nx)&&!NOTNAME.test(nx)&&!QTY.test(nx)&&!DATE_RE.test(nx);DATE_RE.lastIndex=0;
+      if(nxOk&&(nameBelow||!pending)){name=cleanName(nx);i++;nameBelow=true}
+      else if(nameBelow)name='Artikel';
+      else if(pending)name=cleanName(pending);else continue}
     pending=null;
     if(p.amt===0) continue;
-    items.push({name,amount:p.amt});
+    items.push({at:i,name,amount:p.amt,check:!!p.check||lowIdx.has(i),mark:p.mark||''});
   }
   // Gesamtbetrag per Mehrheit: „Gesamtbetrag“, Kartenzahlung und Brutto-Spalte stimmen ab
   const top=Object.entries(votes).sort((x,y)=>y[1]-x[1]||(+y[0])-(+x[0]))[0];
   if(top&&(total==null||top[1]>(votes[r2(total).toFixed(2)]||0)))total=+top[0];
+  // Nennt der Beleg mehrere Beträge als Summe, gewinnt der, der zu den Positionen passt (z. B. „713,07“ verlesen, Kartenzahlung „13,07“ richtig)
+  {const s0=r2(items.reduce((a,x)=>a+x.amount,0)),k=s0.toFixed(2);
+    if(items.length>=2&&votes[k]&&total!=null&&Math.abs(total-s0)>0.011){votes[k]+=votes[r2(total).toFixed(2)]||0;total=s0}}
   const totalVotes=total!=null?(votes[r2(total).toFixed(2)]||0):0;
+  // MwSt.-Tabelle (Satz · Netto · MwSt. · Gesamt): deren Netto-Summe gilt als Nettobetrag der Rechnung
+  if(netAmt==null&&vatNet>0)netAmt=r2(vatNet);
+  // Doppelt gelesene Zeile: namenlose, unsichere Position direkt vor einer Position mit demselben Betrag
+  for(let k=items.length-2;k>=0;k--)if(items[k].name==='Artikel'&&items[k].check&&Math.abs(items[k].amount-items[k+1].amount)<0.005)items.splice(k,1);
+  // Eine „Position“, die genau der Summe entspricht, während die übrigen schon aufgehen oder ihr Name wie „gesamt“ aussieht, ist die Summenzeile
+  if(total!=null&&items.length>1){const s0=items.reduce((a,x)=>a+x.amount,0);
+    for(let k=items.length-1;k>=0;k--){const it=items[k];if(Math.abs(it.amount-total)>0.005)continue;
+      const w=(it.name.match(/\p{L}{4,}/u)||[''])[0].toLowerCase();
+      if(Math.abs(s0-it.amount-total)<0.011||TOTALWORDS.some(t=>Math.abs(t.length-w.length)<=1&&lev(w,t)<=2)){items.splice(k,1);break}}}
+  // Fehlt genau der Betrag einer Zeile, deren Preis unlesbar war, und stehen seine Ziffern in dieser Zeile: Position ergänzen
+  if(total!=null&&orph.length){const diff=r2(total-items.reduce((a,x)=>a+x.amount,0));
+    if(diff>=1){const ds=diff.toFixed(2).replace('.',''),c=orph.filter(o=>o.digits.includes(ds)&&letters(o.name)>=3);
+      if(c.length===1){const o=c[0];let k=items.findIndex(x=>x.at>o.at);if(k<0)k=items.length;items.splice(k,0,{at:o.at,name:o.name,amount:diff,check:false,mark:''})}}}
+  // Trinkgeld zählt nur mit, wenn es in der Gesamtsumme steckt
+  {const ti=items.findIndex(x=>/trinkgeld|^tip\b/i.test(x.name));
+    if(ti>=0&&total!=null&&Math.abs(items.reduce((a,x)=>a+x.amount,0)-items[ti].amount-total)<0.011)items.splice(ti,1)}
+  // Geht die Summe der Positionen genau auf, sind auch unsicher gelesene Beträge bestätigt
+  if(total!=null&&Math.abs(items.reduce((a,x)=>a+x.amount,0)-total)<0.011)items.forEach(x=>x.check=false);
+  const fix=total!=null?suggestFix(items,total,groups):null;
   // Netto-Rechnung: MwSt. anteilig auf die Positionen verteilen
   let gross=null;const sum=r2(items.reduce((a,x)=>a+x.amount,0));
   if(total!=null&&sum>0&&total-sum>0.01){
     const ratio=total/sum,explicit=/zzgl|zuz(ü|ue)glich|nettobetrag|summe\s*netto|netto\s*summe|gesamt\s*netto|netto\s*gesamt|rechnungsbetrag\s*netto/i.test(text);
     const netOk=netAmt==null||Math.abs(netAmt-sum)<0.05;
     const vatOk=vatAmt==null||Math.abs(sum+vatAmt-total)<0.05;
-    if(netOk&&vatOk&&(explicit&&ratio>1.05&&ratio<1.20||Math.abs(ratio-1.19)<0.002||Math.abs(ratio-1.07)<0.002)){
+    const hint=/netto|zzgl|zuz(ü|ue)gl|mwst|umsatzsteuer|\bust\b/i.test(text);
+    if(netOk&&vatOk&&(explicit&&ratio>1.05&&ratio<1.20||hint&&(Math.abs(ratio-1.19)<0.002||Math.abs(ratio-1.07)<0.002))){
       items.forEach(x=>x.amount=r2(x.amount*ratio));
       const diff=r2(total-items.reduce((a,x)=>a+x.amount,0));
       if(diff){const big=items.reduce((m,x)=>x.amount>m.amount?x:m,items[0]);big.amount=r2(big.amount+diff)}
       gross={net:sum,vat:r2(total-sum)};
     }
   }
-  return {merchant,date:dt?dt.iso:'',dateFound:!!dt,total,totalVotes,items,gross,due:findDue(lines,dt&&dt.iso),type:merchantType(merchant)};
+  return {merchant,date:dt?dt.iso:'',dateFound:!!dt,total,totalVotes,items,gross,fix:gross?null:fix,due:findDue(lines,dt&&dt.iso),type:merchantType(merchant)};
 }
 
 const CRAFT_LABOR=/ARBEIT|LOHN|MONTAGE|MONTEUR|ANFAHRT|FAHRT|STUNDE|MEISTER|GESELLE|REPARATUR|WARTUNG|ENTSORG|DEMONTAGE|EINBAU|INSTALLATION/;
@@ -399,12 +637,12 @@ function makeDraft(parsed){
   if(!items.length) items=[{name:parsed.merchant||'',amount:parsed.total||0}];
   const type=parsed.type||merchantType(parsed.merchant);
   const fx=fixHintFor(parsed.merchant,type);
-  const mkItems=list=>list.map(it=>{const c=classify(it.name,mi);const k=normKey(it.name);
+  const mkItems=list=>list.map(it=>{const sk=similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
       if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
-      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}});
+      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:it.sim&&c.src?c.src+' · Name korrigiert':c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}});
   const sum=r2(items.reduce((a,x)=>a+x.amount,0));
   let collapsed=null;
   // Positionen gehen nicht auf, aber der Laden hat nur eine Kategorie: sicheren Gesamtbetrag nehmen
@@ -413,12 +651,12 @@ function makeDraft(parsed){
   }
   return {id:null,refund:false,merchant:parsed.merchant,date:parsed.date||today(),dateGuessed:!parsed.dateFound,total:parsed.total,always:false,
     gross:parsed.gross||null,open:!!parsed.due,due:parsed.due||'',fixHint:fx?fx.id:null,collapsed,
-    items:items.map(it=>{const c=classify(it.name,mi);const k=normKey(it.name);
+    items:items.map(it=>{const sk=similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
       if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
-      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:c.src,flag:c.flag,suggest:c.suggest,tax}})};
+      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:it.sim&&c.src?c.src+' · Name korrigiert':c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}}),pages:parsed.pages||0,warn:parsed.warn||[],q:parsed.q||null,fix:collapsed?null:(parsed.fix||null),giro:parsed.giro||null,tse:parsed.tse||null,pay:parsed.tse?parsed.tse.pay:''};
 }
 function reclassify(){
   const d=ui.draft;if(!d)return;
@@ -453,10 +691,11 @@ function loadTesseract(){
   if(!tessPromise)tessPromise=new Promise((res,rej)=>{const s=document.createElement('script');s.src=TESSERACT_URL;s.onload=res;s.onerror=()=>{tessPromise=null;rej(new Error('load'))};document.head.appendChild(s)});
   return tessPromise;
 }
+let pageTag='',pageNote='';
 function setProgress(label,p){
-  if(!ui.ocr)return;ui.ocr.label=label;if(p!=null)ui.ocr.p=p;
+  if(!ui.ocr)return;ui.ocr.label=(pageTag?pageTag+': ':'')+(pageNote?pageNote+' – ':'')+label;if(p!=null)ui.ocr.p=p;
   const l=document.getElementById('ocr-label'),b=document.getElementById('ocr-bar');
-  if(l)l.textContent=label;if(b)b.style.width=Math.round((ui.ocr.p||0)*100)+'%';
+  if(l)l.textContent=ui.ocr.label;if(b)b.style.width=Math.round((ui.ocr.p||0)*100)+'%';
 }
 let ocrPass='';
 async function getWorker(){
@@ -479,35 +718,154 @@ function findPaper(src,W,H){
   for(let i=0,j=0;i<n;i++,j+=4){const r=d[j],gg=d[j+1],b=d[j+2];g[i]=(r*77+gg*150+b*29)>>8;hist[g[i]]++;ok[i]=(Math.max(r,gg,b)-Math.min(r,gg,b))<40?1:0}
   let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];let wb=0,sb=0,best=0,th=128;
   for(let t=0;t<256;t++){wb+=hist[t];if(!wb||wb===n)continue;sb+=t*hist[t];const mb=sb/wb,mf=(sum-sb)/(n-wb),v=wb*(n-wb)*(mb-mf)*(mb-mf);if(v>best){best=v;th=t}}
-  const lab=new Int32Array(n),stack=new Int32Array(n);let bestN=0,box=null,id=0;
+  const lab=new Int32Array(n),stack=new Int32Array(n),cnts=[0];let bestN=0,box=null,id=0;
   for(let i=0;i<n;i++){
     if(lab[i]||!ok[i]||g[i]<=th)continue;id++;let sp=0,cnt=0,x0=w,x1=0,y0=h,y1=0;stack[sp++]=i;lab[i]=id;
     while(sp){const k=stack[--sp],px=k%w,py=(k-px)/w;cnt++;if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
       const nb=[px>0?k-1:-1,px<w-1?k+1:-1,py>0?k-w:-1,py<h-1?k+w:-1];
       for(const q of nb)if(q>=0&&!lab[q]&&ok[q]&&g[q]>th){lab[q]=id;stack[sp++]=q}}
-    if(cnt>bestN){bestN=cnt;box=[x0,y0,x1,y1]}
+    cnts.push(cnt);if(cnt>bestN){bestN=cnt;box=[x0,y0,x1,y1]}
   }
-  const frac=bestN/n;
-  if(!box||frac<0.04||frac>0.97||(box[2]-box[0])<w*0.12||(box[3]-box[1])<h*0.12)return {x:0,y:0,w:W,h:H,cropped:false};
+  // Große helle Flächen gehören zum Papier (ein dunkler Balken im Logo kann den Bon teilen)
+  const big=new Uint8Array(id+1);let bigN=0;
+  for(let k=1;k<=id;k++)if(cnts[k]>=bestN*0.15){big[k]=1;bigN+=cnts[k]}
+  // Papier im Schatten ist dunkler als die Schwelle: von den hellen Flächen aus weiterwachsen,
+  // solange die Helligkeit nur sanft abfällt (die Papierkante ist ein harter Sprung)
+  if(bestN>=n*0.03){let sp=0;const PAPER=id+1,grown=new Uint8Array(n);
+    // hellster Wert der Umgebung (Blöcke von 8 Punkten, Nachbarschaft ±3 Blöcke)
+    const B=8,bw=Math.ceil(w/B),bh=Math.ceil(h/B),bm=new Uint8Array(bw*bh),lm=new Uint8Array(bw*bh);
+    for(let i=0;i<n;i++){const px=i%w,py=(i-px)/w,k=((py/B)|0)*bw+((px/B)|0);if(g[i]>bm[k])bm[k]=g[i]}
+    for(let by=0;by<bh;by++)for(let bx=0;bx<bw;bx++){let m=0;
+      for(let yy=Math.max(0,by-3);yy<=Math.min(bh-1,by+3);yy++)for(let xx=Math.max(0,bx-3);xx<=Math.min(bw-1,bx+3);xx++){const v=bm[yy*bw+xx];if(v>m)m=v}
+      lm[by*bw+bx]=m}
+    for(let i=0;i<n;i++)if(big[lab[i]])stack[sp++]=i;
+    const floor=th*0.3;let add=0;
+    while(sp){const k=stack[--sp],px=k%w,py=(k-px)/w;
+      const nb=[px>0?k-1:-1,px<w-1?k+1:-1,py>0?k-w:-1,py<h-1?k+w:-1];
+      for(const q of nb){if(q<0||grown[q]||big[lab[q]]||!ok[q])continue;const qx=q%w,qy=(q-qx)/w;
+        if(g[q]>floor&&g[q]>=0.72*lm[((qy/B)|0)*bw+((qx/B)|0)]){grown[q]=1;add++;stack[sp++]=q}}}
+    // nur übernehmen, wenn das Wachstum nicht ausläuft (sonst heller Tisch statt Papier)
+    if(add&&bigN+add<n*0.9&&add<bigN*1.5){for(let i=0;i<n;i++)if(grown[i]){lab[i]=PAPER}bigN+=add;
+      const b2=new Uint8Array(PAPER+1);b2.set(big);b2[PAPER]=1;
+      var bigX=b2}
+  }
+  const isP=typeof bigX!=='undefined'?bigX:big;
+  const spanL=new Int16Array(h).fill(-1),spanR=new Int16Array(h).fill(-1);
+  if(box){box=[w,h,0,0];
+    for(let i=0;i<n;i++)if(isP[lab[i]]){const px=i%w,py=(i-px)/w;
+      if(spanL[py]<0||px<spanL[py])spanL[py]=px;if(px>spanR[py])spanR[py]=px;
+      if(px<box[0])box[0]=px;if(px>box[2])box[2]=px;if(py<box[1])box[1]=py;if(py>box[3])box[3]=py}
+    // Lücken (Zeilen ohne Papier zwischen Papierzeilen) mit der Zeile darüber füllen
+    for(let y=box[1]+1;y<=box[3];y++)if(spanL[y]<0){spanL[y]=spanL[y-1];spanR[y]=spanR[y-1]}
+  }
+  const frac=bigN/n;
+  if(!box||bestN<n*0.03||frac<0.04||frac>0.97||(box[2]-box[0])<w*0.12||(box[3]-box[1])<h*0.12)return {x:0,y:0,w:W,h:H,cropped:false};
   const m=6,x0=Math.max(0,(box[0]-m)/s),y0=Math.max(0,(box[1]-m)/s),x1=Math.min(W,(box[2]+m+1)/s),y1=Math.min(H,(box[3]+m+1)/s);
-  return {x:x0,y:y0,w:x1-x0,h:y1-y0,cropped:true};
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0,cropped:true,s,spanL,spanR};
 }
-// Zwei Fassungen für die Texterkennung: Graustufen mit gestrecktem Kontrast und Schwarz-Weiß mit örtlicher Schwelle
+// Bild um 90, 180 oder 270 Grad drehen (quer oder kopfüber fotografierte Bons)
+function rotated(src,W,H,rot){
+  rot=((rot||0)%360+360)%360;if(!rot)return {src,W,H};
+  const sw=rot%180?H:W,sh=rot%180?W:H,c=document.createElement('canvas');c.width=sw;c.height=sh;
+  const x=c.getContext('2d');x.translate(sw/2,sh/2);x.rotate(rot*Math.PI/180);x.drawImage(src,-W/2,-H/2,W,H);
+  return {src:c,W:sw,H:sh};
+}
+// Schräglage schätzen: Beim richtigen Winkel liegen die Textzeilen waagerecht, das Zeilenprofil hat dann die schärfsten Spitzen.
+// Der Vergleich mit dem Spaltenprofil zeigt außerdem, ob der Bon quer liegt.
+function skewInfo(g,w,h){
+  const k=Math.max(1,Math.round(Math.max(w,h)/700)),sw=Math.floor(w/k),sh=Math.floor(h/k);
+  let xs=[],ys=[];
+  for(let y=0;y<sh;y++)for(let x=0;x<sw;x++)if(g[y*k*w+x*k]<120){xs.push(x);ys.push(y)}
+  if(xs.length<300)return {angle:0,side:false};
+  if(xs.length>30000){const st=Math.ceil(xs.length/30000);xs=xs.filter((_,i)=>i%st===0);ys=ys.filter((_,i)=>i%st===0)}
+  const n=xs.length,size=sw+sh+2,hist=new Float64Array(2*size);
+  const score=(deg,swap)=>{const t=Math.tan(deg*Math.PI/180);hist.fill(0);
+    for(let i=0;i<n;i++){const r=swap?xs[i]+ys[i]*t:ys[i]-xs[i]*t;hist[Math.round(r)+size>>0]++}
+    let s=0;for(let i=0;i<hist.length;i++)s+=hist[i]*hist[i];return s};
+  const best=swap=>{let ba=0,bs=-1;for(let a=-15;a<=15;a++){const s=score(a,swap);if(s>bs){bs=s;ba=a}}
+    for(let a=ba-0.75;a<=ba+0.75;a+=0.25){const s=score(a,swap);if(s>bs){bs=s;ba=a}}return {a:ba,s:bs}};
+  const up=best(false),sd=best(true);
+  return {angle:up.a,side:sd.s>up.s*1.15};
+}
+// Fassungen für die Texterkennung: Papier ausschneiden, Hintergrund weiß, dunkle Screenshots umkehren,
+// Schatten ausgleichen, gerade drehen; daraus Graustufen und Schwarz-Weiß mit örtlicher Schwelle
 function prepVariants(src,W,H){
   const r=findPaper(src,W,H);
   let tw=Math.min(1600,Math.max(r.w,1200));tw=Math.min(tw,r.w*3);
   let th=Math.round(r.h*tw/r.w);
   if(tw*th>5e6){const k=Math.sqrt(5e6/(tw*th));tw=Math.round(tw*k);th=Math.round(th*k)}
   tw=Math.max(1,Math.round(tw));th=Math.max(1,th);
-  const c=document.createElement('canvas');c.width=tw;c.height=th;const x=c.getContext('2d',{willReadFrequently:true});
+  let c=document.createElement('canvas');c.width=tw;c.height=th;let x=c.getContext('2d',{willReadFrequently:true});
   x.fillStyle='#fff';x.fillRect(0,0,tw,th);x.drawImage(src,r.x,r.y,r.w,r.h,0,0,tw,th);
-  const img=x.getImageData(0,0,tw,th),d=img.data,n=tw*th,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);
-  for(let i=0,j=0;i<n;i++,j+=4){g[i]=(d[j]*77+d[j+1]*150+d[j+2]*29)>>8;hist[g[i]]++}
-  let lo=0,hi=255,acc=0;for(let t=0;t<256;t++){acc+=hist[t];if(acc>=n*0.02){lo=t;break}}
-  acc=0;for(let t=255;t>=0;t--){acc+=hist[t];if(acc>=n*0.02){hi=t;break}}
-  const span=Math.max(1,hi-lo);for(let i=0;i<n;i++)g[i]=(g[i]-lo)*255/span;
-  for(let i=0,j=0;i<n;i++,j+=4){d[j]=d[j+1]=d[j+2]=g[i];d[j+3]=255}
-  x.putImageData(img,0,0);
+  let img=x.getImageData(0,0,tw,th),d=img.data,n=tw*th,g=new Uint8ClampedArray(n);const inside=new Uint8Array(n).fill(1);
+  // Hintergrund neben dem Papier (Tisch, Stoff) merken: Er wird weiß, damit sein Muster nicht als Schrift gelesen wird
+  if(r.cropped&&r.spanL){const ky=r.h/th,kx=r.w/tw,sh=r.spanL.length;
+    for(let yy=0;yy<th;yy++){const sy=Math.min(sh-1,Math.floor((r.y+yy*ky)*r.s));const L=r.spanL[sy],R=r.spanR[sy];
+      for(let xx=0;xx<tw;xx++){const sx=(r.x+xx*kx)*r.s;if(L<0||sx<L+2.2||sx>R-1.2)inside[yy*tw+xx]=0}}
+    // oberste und unterste Papierzeilen ebenfalls abschneiden
+    {let y0=-1,y1=-1;for(let k=0;k<sh;k++)if(r.spanL[k]>=0){if(y0<0)y0=k;y1=k}
+      for(let yy=0;yy<th;yy++){const sy=(r.y+yy*ky)*r.s;if(sy<y0+1.2||sy>y1-0.2)inside.fill(0,yy*tw,(yy+1)*tw)}}}
+  let sumIn=0,cntIn=0;
+  for(let i=0,j=0;i<n;i++,j+=4){g[i]=(d[j]*77+d[j+1]*150+d[j+2]*29)>>8;if(inside[i]){sumIn+=g[i];cntIn++}}
+  const meanIn=cntIn?sumIn/cntIn:255;
+  // Dunkler Screenshot (helle Schrift auf dunklem Grund): umkehren
+  const inverted=!r.cropped&&meanIn<105;
+  if(inverted)for(let i=0;i<n;i++)g[i]=255-g[i];
+  // Schatten und ungleichmäßiges Licht ausgleichen: jeden Punkt an der Helligkeit seiner Umgebung messen
+  {const W1=tw+1,si=new Float64Array(W1*(th+1)),ci=new Uint32Array(W1*(th+1));
+    for(let yy=1;yy<=th;yy++){let rs=0,rc=0;for(let xx=1;xx<=tw;xx++){const i=(yy-1)*tw+xx-1;if(inside[i]){rs+=g[i];rc++}si[yy*W1+xx]=si[(yy-1)*W1+xx]+rs;ci[yy*W1+xx]=ci[(yy-1)*W1+xx]+rc}}
+    const rad=Math.max(24,Math.round(Math.max(tw,th)/14)),out=new Uint8ClampedArray(n),gq=new Uint8Array(n);
+    for(let yy=0;yy<th;yy++){const ya=Math.max(0,yy-rad),yb=Math.min(th,yy+rad+1);
+      for(let xx=0;xx<tw;xx++){const i=yy*tw+xx;if(!inside[i]){out[i]=255;continue}
+        const xa=Math.max(0,xx-rad),xb=Math.min(tw,xx+rad+1);
+        const cnt=ci[yb*W1+xb]-ci[ya*W1+xb]-ci[yb*W1+xa]+ci[ya*W1+xa],S=si[yb*W1+xb]-si[ya*W1+xb]-si[yb*W1+xa]+si[ya*W1+xa];
+        const m=cnt?S/cnt:255;out[i]=m>8?g[i]*235/m:g[i];gq[i]=m>8?Math.min(255,235/m*40):40}}
+    // dunkle Stellen wurden stark aufgehellt: dort das mitverstärkte Rauschen glätten
+    const o3=new Uint8ClampedArray(out);
+    for(let yy=1;yy<th-1;yy++)for(let xx=1;xx<tw-1;xx++){const i=yy*tw+xx;if(gq[i]>62&&inside[i])o3[i]=(out[i-tw-1]+out[i-tw]+out[i-tw+1]+out[i-1]+2*out[i]+out[i+1]+out[i+tw-1]+out[i+tw]+out[i+tw+1])/10}
+    g=o3}
+  // Kontrast strecken
+  const stretch=()=>{const hist=new Uint32Array(256);for(let i=0;i<n;i++)hist[g[i]]++;
+    let lo=0,hi=255,acc=0;for(let t=0;t<256;t++){acc+=hist[t];if(acc>=n*0.02){lo=t;break}}
+    acc=0;for(let t=255;t>=0;t--){acc+=hist[t];if(acc>=n*0.02){hi=t;break}}
+    const span=Math.max(1,(hi-lo)*0.8);for(let i=0;i<n;i++)g[i]=(g[i]-lo)*255/span};
+  stretch();
+  // Randzone des Papiers: blasse Schatten an der Kante weiß färben (echte Schrift ist deutlich dunkler)
+  if(r.cropped&&r.spanL){const zone=Math.max(6,Math.round(tw*0.025));
+    for(let yy=0;yy<th;yy++){let a=-1,b=-1;const o=yy*tw;
+      for(let xx=0;xx<tw;xx++)if(inside[o+xx]){a=xx;break}
+      if(a<0)continue;for(let xx=tw-1;xx>=0;xx--)if(inside[o+xx]){b=xx;break}
+      for(let xx=a;xx<Math.min(b,a+zone);xx++)if(g[o+xx]>105)g[o+xx]=255;
+      for(let xx=Math.max(a,b-zone);xx<=b;xx++)if(g[o+xx]>105)g[o+xx]=255}}
+  const put=()=>{for(let i=0,j=0;i<n;i++,j+=4){d[j]=d[j+1]=d[j+2]=g[i];d[j+3]=255}x.putImageData(img,0,0)};
+  put();
+  // Gerade drehen
+  const sk=skewInfo(g,tw,th);
+  if(Math.abs(sk.angle)>=0.6){
+    const a=-sk.angle*Math.PI/180,cs=Math.abs(Math.cos(a)),sn=Math.abs(Math.sin(a));
+    const nw=Math.round(tw*cs+th*sn),nh=Math.round(tw*sn+th*cs),c2=document.createElement('canvas');c2.width=nw;c2.height=nh;
+    const x2=c2.getContext('2d',{willReadFrequently:true});x2.fillStyle='#fff';x2.fillRect(0,0,nw,nh);
+    x2.translate(nw/2,nh/2);x2.rotate(a);x2.drawImage(c,-tw/2,-th/2);x2.setTransform(1,0,0,1,0,0);
+    c=c2;x=x2;tw=nw;th=nh;n=tw*th;img=x.getImageData(0,0,tw,th);d=img.data;g=new Uint8ClampedArray(n);
+    for(let i=0,j=0;i<n;i++,j+=4)g[i]=d[j];
+  }
+  // Schärfe: An Schriftkanten (voller Wechsel hell/dunkel) messen, welcher Anteil des Wechsels
+  // auf einen einzigen Punkt des Originalfotos fällt. Scharf: der größte Teil. Unscharf: verteilt über viele Punkte.
+  const sc0=tw/Math.max(1,r.w),stp=Math.max(1,Math.round(sc0)),rat=[];
+  for(let yy=3;yy<th-3;yy+=3)for(let xx=3*stp;xx<tw-3*stp-1;xx+=2){const i=yy*tw+xx,a=g[i-2*stp],b=g[i+2*stp],dd=Math.abs(a-b);
+    if(dd<110)continue;let mx=0;for(let k=-2;k<2;k++){const v=Math.abs(g[i+(k+1)*stp]-g[i+k*stp]);if(v>mx)mx=v}
+    rat.push(mx/dd);xx+=4*stp;if(rat.length>6000)break}
+  let sharp=1;if(rat.length>=40){rat.sort((a,b)=>a-b);sharp=rat[rat.length>>1]}
+  // Unscharfes Foto nachschärfen (Kanten verstärken)
+  if(sharp<BLUR_LIMIT){const W2=tw+1,si=new Float64Array(W2*(th+1)),rd=Math.max(2,Math.round(stp*2.5));
+    for(let yy=1;yy<=th;yy++){let row=0;for(let xx=1;xx<=tw;xx++){row+=g[(yy-1)*tw+xx-1];si[yy*W2+xx]=si[(yy-1)*W2+xx]+row}}
+    const o2=new Uint8ClampedArray(n);
+    for(let yy=0;yy<th;yy++){const ya=Math.max(0,yy-rd),yb=Math.min(th,yy+rd+1);
+      for(let xx=0;xx<tw;xx++){const xa=Math.max(0,xx-rd),xb=Math.min(tw,xx+rd+1),i=yy*tw+xx;
+        const m=(si[yb*W2+xb]-si[ya*W2+xb]-si[yb*W2+xa]+si[ya*W2+xa])/((yb-ya)*(xb-xa));o2[i]=g[i]+1.6*(g[i]-m)}}
+    g=o2;stretch();put();
+  }
+  // Schwarz-Weiß mit örtlicher Schwelle
   const bw=document.createElement('canvas');bw.width=tw;bw.height=th;const bx=bw.getContext('2d');const bi=bx.createImageData(tw,th),bd=bi.data;
   const W1=tw+1,ii=new Uint32Array(W1*(th+1));
   for(let yy=1;yy<=th;yy++){let row=0;for(let xx=1;xx<=tw;xx++){row+=g[(yy-1)*tw+xx-1];ii[yy*W1+xx]=ii[(yy-1)*W1+xx]+row}}
@@ -517,29 +875,115 @@ function prepVariants(src,W,H){
       const S=ii[yb*W1+xb]-ii[ya*W1+xb]-ii[yb*W1+xa]+ii[ya*W1+xa],mean=S/((yb-ya)*(xb-xa));
       const v=g[yy*tw+xx]<mean-C?0:255,j=(yy*tw+xx)*4;bd[j]=bd[j+1]=bd[j+2]=v;bd[j+3]=255}}
   bx.putImageData(bi,0,0);
-  return {gray:c,bw,cropped:r.cropped};
+  return {gray:c,bw,cropped:r.cropped,side:sk.side,q:{sharp,dark:!inverted&&meanIn<70,scale:tw/Math.max(1,r.w),angle:sk.angle,inverted}};
 }
 function scoreParse(p){
   const sum=p.items.reduce((a,x)=>a+x.amount,0);let sc=0;
   if(p.total!=null)sc+=3+Math.min(p.totalVotes||0,6);
   if(p.total!=null&&p.items.length&&Math.abs(sum-p.total)<0.02)sc+=8;
-  sc+=Math.min(p.items.length,6)-2*p.items.filter(i=>letters(i.name)<3).length;
+  sc+=Math.min(p.items.length,6)-2*p.items.filter(i=>letters(i.name)<3).length-p.items.filter(i=>i.name==='Artikel').length;
+  if(p.total>0&&p.items.length)sc+=3*(1-Math.min(1,Math.abs(sum-p.total)/p.total));
+  sc-=0.5*p.items.filter(i=>i.check).length;
   if(p.dateFound)sc+=1;if(p.merchant&&letters(p.merchant)>=3)sc+=1;
   return sc;
 }
-async function ocrCanvases(variants){
+const verified=p=>p.total!=null&&p.items.length>0&&Math.abs(p.items.reduce((a,x)=>a+x.amount,0)-p.total)<0.02&&(p.totalVotes||0)>=2;
+// Wortliste der Texterkennung (mit Position und Sicherheit) zu Zeilen zusammensetzen.
+// Die Texterkennung trennt oft Namens- und Preisspalte in zwei Blöcke; hier kommen Wörter auf gleicher Höhe wieder in eine Zeile.
+function tsvRows(tsv){
+  const lines=new Map();
+  String(tsv||'').split('\n').forEach(l=>{const f=l.split('\t');if(f.length<12||f[0]!=='5')return;
+    const t=f.slice(11).join('\t').trim();if(!t)return;
+    const w={x:+f[6],y:+f[7],w:+f[8],h:+f[9],c:+f[10],t},key=f[2]+'/'+f[3]+'/'+f[4];
+    if(!(w.h>0&&w.w>0))return;
+    let L=lines.get(key);if(!L){L={words:[]};lines.set(key,L)}L.words.push(w)});
+  const rows=[];
+  [...lines.values()].forEach(L=>{const hs=L.words.map(w=>w.h).sort((a,b)=>a-b),h=hs[hs.length>>1];
+    const yc=L.words.reduce((a,w)=>a+w.y+w.h/2,0)/L.words.length;
+    L.yc=yc;L.h=h;L.x0=Math.min(...L.words.map(w=>w.x));L.x1=Math.max(...L.words.map(w=>w.x+w.w))});
+  const ends=L=>{const ws=L.words.slice().sort((a,b)=>a.x-b.x);L.yL=ws[0].y+ws[0].h/2;L.yR=ws[ws.length-1].y+ws[ws.length-1].h/2};
+  [...lines.values()].sort((a,b)=>a.x0-b.x0).forEach(L=>{ends(L);
+    // rechts neben einem bestehenden Zeilenstück auf gleicher Höhe (am Übergang gemessen): gleiche Zeile
+    let best=null,bd=1e9;
+    rows.forEach(R=>{if(L.x0<R.x1-R.h*0.5)return;const dy=Math.abs(R.yR-L.yL);if(dy<0.55*Math.min(R.h,L.h)&&dy<bd){bd=dy;best=R}});
+    if(best){best.words.push(...L.words);best.x1=Math.max(best.x1,L.x1);best.yR=L.yR;best.yc=(best.yc+L.yc)/2}
+    else rows.push({words:L.words.slice(),yc:L.yc,h:L.h,x0:L.x0,x1:L.x1,yL:L.yL,yR:L.yR})});
+  rows.sort((a,b)=>a.yc-b.yc);
+  rows.forEach(R=>{R.words.sort((a,b)=>a.x-b.x);let out='',end=null;
+    for(const w of R.words){if(end!=null)out+=(w.x-end>R.h*1.6?'   ':' ');out+=w.t;end=w.x+w.w}
+    R.text=out.trim();
+    // Sicherheit des Preises: letztes Wort mit Ziffern
+    const pw=[...R.words].reverse().find(w=>/\d/.test(w.t));R.pc=pw?pw.c:100});
+  return rows;
+}
+function rowsOut(rows){const low=new Set();rows.forEach(R=>{if(R.pc<55||R.clash)low.add(R.text)});return {text:rows.map(R=>R.text).join('\n'),low}}
+// Zwei Lesedurchgänge zeilenweise zusammenführen: je Zeile die Lesung mit lesbarem Preis, bei Widerspruch die sicherere
+function mergeRows(A,B){
+  const out=[],used=new Set();
+  A.forEach(a=>{let bi=-1,bd=1e9;B.forEach((b,i)=>{if(used.has(i))return;const dd=Math.abs(a.yc-b.yc);if(dd<0.8*Math.min(a.h,b.h)&&dd<bd){bd=dd;bi=i}});
+    if(bi<0){out.push(a);return}
+    used.add(bi);const b=B[bi],pa=findPrice(fixPrices(a.text)),pb=findPrice(fixPrices(b.text));
+    if(pa&&pb){if(Math.abs(pa.amt-pb.amt)<0.005)out.push(letters(a.text)>=letters(b.text)?a:b);else{const w=a.pc>=b.pc?a:b;out.push({...w,clash:true})}}
+    else if(pb&&!pa)out.push(b);else out.push(a)});
+  B.forEach((b,i)=>{if(!used.has(i)&&!out.some(o=>Math.abs(o.yc-b.yc)<Math.max(o.h,b.h)))out.push(b)});
+  return out.sort((x,y)=>x.yc-y.yc);
+}
+// Texterkennung: bis zu zwei Durchgänge (Schwarz-Weiß, dann Graustufen). Jede Lesung wird zweimal ausgewertet:
+// mit den Zeilen der Texterkennung selbst und mit Zeilen, die die App aus den Wortpositionen zusammensetzt.
+// quick = nur der erste Durchgang; prior = frühere Lesung derselben Bilder, die ergänzt wird.
+async function ocrCanvases(variants,quick,prior){
   setProgress('Lade Texterkennung …',0);
   await loadTesseract();const w=await getWorker();
-  const passes=[{c:variants.bw,psm:'4'},{c:variants.gray,psm:'6'}];let best=null;
+  const runs=prior&&prior.runs?prior.runs.slice():[],have=new Set(runs.map(r=>r.k));
+  const passes=(quick?[{c:variants.gray,psm:'6',k:'g'}]:[{c:variants.bw,psm:'4',k:'b'},{c:variants.gray,psm:'6',k:'g'}]).filter(x=>!have.has(x.k));
+  const two=!quick||!!prior;
   for(let i=0;i<passes.length;i++){
-    ocrPass=` (Durchgang ${i+1} von ${passes.length})`;setProgress('Lese Text'+ocrPass+' …',0);
+    if(runs.some(r=>verified(r.p)))break; // eindeutig, weiterer Durchgang unnötig
+    ocrPass=two?` (Durchgang ${passes[i].k==='b'?1:2} von 2)`:'';setProgress('Lese Text'+ocrPass+' …',0);
     try{await w.setParameters({tessedit_pageseg_mode:passes[i].psm,preserve_interword_spaces:'1'})}catch(e){}
-    const {data}=await w.recognize(passes[i].c);const text=data.text||'';const p=parseReceipt(text);const sc=scoreParse(p);
-    if(!best||sc>best.sc)best={text,p,sc};
-    const sum=p.items.reduce((a,x)=>a+x.amount,0);
-    if(p.total!=null&&p.items.length&&Math.abs(sum-p.total)<0.02&&(p.totalVotes||0)>=2)break; // eindeutig, zweiter Durchgang unnötig
+    const {data}=await w.recognize(passes[i].c,{},{text:true,tsv:true});
+    const raw=data.text||'';let rows=null;
+    try{if(data.tsv){const rr=tsvRows(data.tsv);if(rr.length)rows=rr}}catch(e){}
+    if(rows){const o=rowsOut(rows),p=parseReceipt(o.text,{low:o.low});runs.push({k:passes[i].k,text:o.text,p,sc:scoreParse(p)+0.25,rows})}
+    if(raw.trim()){const p=parseReceipt(raw);runs.push({k:passes[i].k,text:raw,p,sc:scoreParse(p),rows:null})}
   }
-  ocrPass='';return best;
+  const rb=runs.find(r=>r.k==='b'&&r.rows),rg=runs.find(r=>r.k==='g'&&r.rows);
+  if(rb&&rg&&!runs.some(r=>r.k==='m')&&!runs.some(r=>verified(r.p))){
+    const o=rowsOut(mergeRows(rg.rows,rb.rows)),p=parseReceipt(o.text,{low:o.low});runs.push({k:'m',text:o.text,p,sc:scoreParse(p)+0.5,rows:null});
+  }
+  ocrPass='';
+  if(!runs.length)runs.push({k:'x',text:'',p:parseReceipt(''),sc:-9,rows:null});
+  const top=runs.reduce((m,r)=>r.sc>m.sc?r:m,runs[0]),best={text:top.text,p:top.p,sc:top.sc,runs};
+  // Fehlt der besten Lesung Datum, Händler oder Summe, aus einer anderen Lesung übernehmen
+  runs.forEach(r=>{const a=best.p,o=r.p;if(o===a)return;
+    if(!a.dateFound&&o.dateFound){a.date=o.date;a.dateFound=true}
+    if(!a.merchant&&o.merchant)a.merchant=o.merchant;
+    if(a.total==null&&o.total!=null&&(o.totalVotes||0)>=2){a.total=o.total;a.totalVotes=o.totalVotes}});
+  // Schrifthöhe im Originalfoto (für den Hinweis „Bon zu klein im Bild“)
+  const rs=runs.find(r=>r.rows);if(rs){const hs=rs.rows.map(R=>R.h).sort((a,b)=>a-b);best.textH=hs.length?hs[hs.length>>1]/(variants.q?variants.q.scale:1):0}
+  return best;
+}
+// Foto lesen; liegt der Bon quer oder steht er kopf, die passende Drehung selbst finden.
+// Jede Lage wird erst mit einem schnellen Durchgang geprüft, nur die beste wird gründlich gelesen.
+async function readImage(src,W,H,rot0,fixed){
+  const prep=rot=>{const R=rotated(src,W,H,rot);return prepVariants(R.src,R.W,R.H)};
+  const fin=(res,v,rot)=>{res.q=v.q;res.rot=((rot%360)+360)%360;return res};
+  const poor=r=>!verified(r.p)&&r.sc<7;
+  const v0=prep(rot0);
+  if(fixed)return fin(await ocrCanvases(v0,false),v0,rot0);
+  // Erste Lage gründlich lesen (bei Verdacht auf „quer“ zuerst kurz die gedrehte Lage prüfen), die übrigen nur kurz
+  const order=v0.side?[[rot0+90,true],[rot0,false],[rot0+270,true],[rot0+180,true]]:[[rot0,false],[rot0+180,true],[rot0+90,true],[rot0+270,true]];
+  let best=null,bestV=null,bestQuick=false;
+  for(let k=0;k<order.length;k++){
+    const [rot,quick]=order[k],v=rot===rot0?v0:prep(rot);
+    ocrPass='';pageNote=rot===rot0?'':'Bon wird gedreht';
+    const q=await ocrCanvases(v,quick);
+    if(!best||q.sc>best.sc+2){best=fin(q,v,rot);bestV=v;bestQuick=quick}
+    if(!poor(best))break;
+  }
+  pageNote='';
+  if(bestQuick&&!verified(best.p)){const full=await ocrCanvases(bestV,false,best);if(full.sc>=best.sc)best=fin(full,bestV,best.rot)}
+  delete best.runs;return best;
 }
 /* PDF: Text direkt auslesen, eingescannte PDFs über die Texterkennung */
 const PDFJS_BASE='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/';
@@ -569,39 +1013,154 @@ async function readPdf(file){
     cMapUrl:PDFJS_BASE+'cmaps/',cMapPacked:true,standardFontDataUrl:PDFJS_BASE+'standard_fonts/'}).promise;
   const n=Math.min(doc.numPages,4);let text='';
   for(let i=1;i<=n;i++){const pg=await doc.getPage(i);text+=pageText(await pg.getTextContent())+'\n';setProgress('Lese PDF …',i/n)}
-  if(letters(text)>=20)return {text,p:parseReceipt(text)};
+  if(letters(text)>=20){
+    // GiroCode steckt als Bild in der PDF: Seiten kurz zeichnen und nach QR-Codes suchen
+    const codes=[];
+    for(let i=1;i<=n&&!codes.length;i++){try{setProgress('Suche QR-Code …',i/n);const pg=await doc.getPage(i);const vp=pg.getViewport({scale:2});
+      const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+      await pg.render({canvasContext:c.getContext('2d'),canvas:c,viewport:vp}).promise;codes.push(...await scanCodes(c,c.width,c.height))}catch(e){}}
+    return {text,p:parseReceipt(text),codes};
+  }
   // eingescannt: erste Seite als Bild rendern und erkennen
   const pg=await doc.getPage(1);const vp0=pg.getViewport({scale:1});const vp=pg.getViewport({scale:Math.min(3,1600/vp0.width)});
   const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
   await pg.render({canvasContext:c.getContext('2d'),canvas:c,viewport:vp}).promise;
   await new Promise(r=>c.toBlob(b=>{if(b){if(ui.photoUrl)URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=URL.createObjectURL(b)}r()},'image/jpeg',0.8));
-  return ocrCanvases(prepVariants(c,c.width,c.height));
+  const codes=await scanCodes(c,c.width,c.height);
+  const res=await ocrCanvases(prepVariants(c,c.width,c.height));res.codes=codes;return res;
 }
 const withTimeout=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
 const isPdf=f=>f&&(f.type==='application/pdf'||/\.pdf$/i.test(f.name||''));
-async function runOCR(file){
-  if(!file)return;
-  const pdf=isPdf(file);
-  if(!pdf&&!/^image\//.test(file.type||'image/')){ui.err='Diese Datei kann die App nicht lesen. Wähle ein Foto, einen Screenshot oder eine PDF-Rechnung.';render();return}
-  if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}
-  ui.err='';ui.draft=null;ui.ocr={label:pdf?'Öffne PDF …':'Bereite Foto vor …',p:0};go('beleg');
+/* ---------- QR-Codes: GiroCode auf Rechnungen, Kassen-Code (TSE) auf Bons ---------- */
+// Chrome auf Android erkennt QR-Codes selbst (auf dem Handy). Sonst Ersatz: jsQR, ebenfalls lokal.
+const JSQR_URL='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+let jsqrPromise=null,detector=null;
+function loadJsQR(){
+  if(window.jsQR)return Promise.resolve();
+  if(!jsqrPromise)jsqrPromise=new Promise((res,rej)=>{const s=document.createElement('script');s.src=JSQR_URL;s.onload=res;s.onerror=()=>{jsqrPromise=null;rej(new Error('load'))};document.head.appendChild(s)});
+  return jsqrPromise;
+}
+async function getDetector(){
+  if(detector!==null)return detector;
+  detector=false;
+  try{if('BarcodeDetector' in window){const f=await window.BarcodeDetector.getSupportedFormats();if(f.includes('qr_code'))detector=new window.BarcodeDetector({formats:['qr_code']})}}catch(e){}
+  return detector;
+}
+async function scanCodes(src,W,H){
+  const out=[];
   try{
-    let res;
-    if(pdf)res=await withTimeout(readPdf(file),60000);
-    else{const {img,url}=await loadImage(file);ui.photoUrl=url;setProgress('Suche den Bon im Foto …',0.05);
-      await new Promise(r=>setTimeout(r,30));
-      res=await ocrCanvases(prepVariants(img,img.naturalWidth,img.naturalHeight))}
-    ui.ocr=null;ui.paste=res.text||'';
-    if(!ui.paste.trim()){ui.err=pdf?'In diesem PDF wurde kein Text gefunden.':'Auf dem Foto wurde kein Text gefunden. Fotografiere den Bon gerade, formatfüllend und gut beleuchtet, oder kopiere den Text mit Google Lens.';render();return}
-    parseNow(res.p);
-  }catch(e){
-    ui.ocr=null;
-    ui.err=e&&e.message==='img'?'Das Bild ließ sich nicht öffnen. Versuche ein anderes Foto oder einen Screenshot.':
-      pdf?'Das PDF ließ sich nicht öffnen. Beim ersten Mal braucht die App dafür Internet. Ist das PDF passwortgeschützt, öffne es in einer PDF-App und kopiere den Text.':
-      e&&e.message==='timeout'?'Das Lesen hat zu lange gedauert. Prüfe die Internetverbindung und versuche es noch einmal.':
-      'Die Texterkennung ließ sich nicht laden. Beim ersten Mal braucht sie Internet. Alternativ den Text mit Google Lens kopieren und unten einfügen.';
-    render();
+    const det=await getDetector();
+    if(det){for(const c of await det.detect(src))if(c.rawValue)out.push(c.rawValue);return out}
+    await loadJsQR();
+    for(const max of [1400,2400]){
+      const k=Math.min(1,max/Math.max(W,H)),w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k));
+      const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(src,0,0,w,h);
+      const r=window.jsQR(x.getImageData(0,0,w,h).data,w,h);if(r&&r.data){out.push(r.data);break}
+      if(k===1)break;
+    }
+  }catch(e){}
+  return out;
+}
+// GiroCode (EPC-QR): BCD · Version · Zeichensatz · SCT · BIC · Empfänger · IBAN · EUR123.45 · Zweck · Referenz · Text
+function parseGiro(raw){
+  const l=String(raw).split(/\r?\n/);
+  if(l[0]!=='BCD'||l[3]!=='SCT')return null;
+  const m=(l[7]||'').match(/^EUR(\d+(?:\.\d{1,2})?)$/);
+  return {kind:'giro',name:(l[5]||'').trim(),iban:(l[6]||'').replace(/\s/g,''),amount:m?r2(parseFloat(m[1])):null,ref:((l[9]||'')+' '+(l[10]||'')).trim()};
+}
+// Kassen-Code (KassenSichV): V0;Kasse;Kassenbeleg-V1;Beleg^19%_7%_10,7%_5,5%_0%^Betrag:Bar_Betrag:Unbar;Nr;Zähler;Start;Ende;…
+function parseTse(raw){
+  const f=String(raw).split(';');
+  if(f[0]!=='V0'||f.length<9||!/Kassenbeleg/i.test(f[2]||''))return null;
+  const parts=(f[3]||'').split('^');if(!/^Beleg$/i.test(parts[0]||''))return null;
+  const vat=(parts[1]||'').split('_').map(Number);
+  const pays=(parts[2]||'').split('_').filter(Boolean).map(x=>{const [a,t]=x.split(':');return {amt:Number(a),bar:/^bar$/i.test(t||'')}}).filter(x=>!isNaN(x.amt));
+  const gross=r2(vat.filter(v=>!isNaN(v)).reduce((a,v)=>a+v,0));
+  const paid=r2(pays.reduce((a,x)=>a+x.amt,0));
+  const t=f[6]||f[7]||'';let d=null;
+  if(/^\d{9,13}$/.test(t))d=new Date(+t*(t.length>10?1:1000));else if(t)d=new Date(t);
+  const date=d&&!isNaN(d)?d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()):'';
+  const pay=pays.length?(pays.every(x=>x.bar)?'bar':pays.every(x=>!x.bar)?'unbar':'gemischt'):'';
+  const total=gross||paid;
+  return total>0?{kind:'tse',total,vat19:vat[0]||0,vat7:vat[1]||0,date,pay}:null;
+}
+// Gelesene Codes in das Ergebnis der Texterkennung einarbeiten: Codes sind fehlerfrei und haben Vorrang
+function applyCodes(p,codes){
+  if(!p||!codes||!codes.length)return p;
+  for(const raw of codes){
+    const g=parseGiro(raw);
+    if(g&&!p.giro){p.giro=g;
+      if(g.amount){p.total=g.amount;p.totalVotes=9}
+      if(g.name){const b=MERCHANTS.find(m=>!m.generic&&m.re.test(g.name));
+        if(b)p.merchant=b.name;
+        else if(!p.merchant||letters(p.merchant)<3||!MERCHANTS.some(m=>m.name===p.merchant))p.merchant=cleanMerchant(g.name)}
+      continue}
+    const t=parseTse(raw);
+    if(t&&!p.tse){p.tse=t;p.total=t.total;p.totalVotes=9;if(t.date){p.date=t.date;p.dateFound=true}}
   }
+  if(p.total!=null&&p.items.length&&Math.abs(p.items.reduce((a,x)=>a+x.amount,0)-p.total)<0.011)p.items.forEach(x=>x.check=false);
+  return p;
+}
+const BLUR_LIMIT=0.5,SMALL_LIMIT=13;
+function ocrErr(e,pdf){
+  return e&&e.message==='type'?'Diese Datei kann die App nicht lesen. Wähle ein Foto, einen Screenshot oder eine PDF-Rechnung.':
+    e&&e.message==='img'?'Das Bild ließ sich nicht öffnen. Versuche ein anderes Foto oder einen Screenshot.':
+    pdf?'Das PDF ließ sich nicht öffnen. Beim ersten Mal braucht die App dafür Internet. Ist das PDF passwortgeschützt, öffne es in einer PDF-App und kopiere den Text.':
+    e&&e.message==='timeout'?'Das Lesen hat zu lange gedauert. Prüfe die Internetverbindung und versuche es noch einmal.':
+    'Die Texterkennung ließ sich nicht laden. Beim ersten Mal braucht sie Internet. Alternativ den Text mit Google Lens kopieren und unten einfügen.';
+}
+// Eine Datei lesen: PDF-Text direkt, Fotos und Screenshots über die Texterkennung
+async function readOne(file,keepPhoto,rot,fixed){
+  if(isPdf(file))return withTimeout(readPdf(file),60000);
+  if(!/^image\//.test(file.type||'image/'))throw new Error('type');
+  const {img,url}=await loadImage(file);
+  if(keepPhoto)ui.photoUrl=url;
+  try{
+    setProgress('Suche QR-Code …',0.02);
+    const codes=await scanCodes(img,img.naturalWidth,img.naturalHeight);
+    setProgress('Suche den Bon im Foto …',0.05);await new Promise(r=>setTimeout(r,30));
+    const res=await readImage(img,img.naturalWidth,img.naturalHeight,rot||0,!!fixed);
+    res.codes=codes;
+    // Hinweise zur Fotoqualität, falls das Ergebnis nicht rechnerisch bestätigt ist
+    const q=res.q||{},w=[];
+    if(q.sharp<BLUR_LIMIT)w.push('unscharf');
+    if(q.dark)w.push('sehr dunkel');
+    if(res.textH&&res.textH<SMALL_LIMIT)w.push('klein');
+    res.p.warn=verified(res.p)?[]:w;res.p.rot=res.rot||0;res.p.q={sharp:q.sharp,textH:res.textH,angle:q.angle,inverted:q.inverted,rot:res.rot};
+    return res;
+  }finally{if(!keepPhoto)URL.revokeObjectURL(url)}
+}
+async function runOCR(file,opts){
+  if(!file)return;
+  const pdf=isPdf(file),o=opts||{};
+  if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}
+  ui.lastFile=pdf?null:file;
+  ui.err='';ui.draft=null;ui.pick=null;ui.ocr={label:pdf?'Öffne PDF …':'Bereite Foto vor …',p:0};go('beleg');
+  try{
+    const res=await readOne(file,true,o.rot||0,o.rot!=null);
+    ui.ocr=null;ui.paste=res.text||'';ui.rot=res.rot||0;
+    if(!ui.paste.trim()){ui.err=pdf?'In diesem PDF wurde kein Text gefunden.':'Auf dem Foto wurde kein Text gefunden. Fotografiere den Bon gerade, formatfüllend und gut beleuchtet, oder kopiere den Text mit Google Lens.';render();return}
+    parseNow(applyCodes(res.p,res.codes));
+  }catch(e){ui.ocr=null;ui.err=ocrErr(e,pdf);render()}
+}
+// Mehrere Seiten (z. B. Screenshots einer langen Rechnung) zu einem Beleg zusammenfügen
+async function runPages(files){
+  ui.queue=null;ui.qTotal=0;ui.qSaved=0;ui.pick=null;
+  if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}
+  ui.err='';ui.draft=null;ui.ocr={label:'Bereite vor …',p:0};go('beleg');
+  const texts=[],codes=[];let cur=null;
+  try{
+    for(let i=0;i<files.length;i++){cur=files[i];pageTag=`Seite ${i+1} von ${files.length}`;
+      const res=await readOne(files[i],i===0);texts.push(res.text||'');if(res.codes)codes.push(...res.codes)}
+  }catch(e){pageTag='';ui.ocr=null;ui.err=ocrErr(e,isPdf(cur));render();return}
+  pageTag='';ui.ocr=null;ui.paste=texts.join('\n');
+  if(!ui.paste.trim()){ui.err='Auf den Seiten wurde kein Text gefunden.';render();return}
+  const p=applyCodes(parseReceipt(ui.paste),codes);p.pages=files.length;parseNow(p);
+}
+function askMulti(files){
+  files=files.filter(Boolean);if(!files.length)return;
+  if(files.length===1){ui.queue=null;ui.qTotal=0;runOCR(files[0]);return}
+  ui.pick=files;ui.draft=null;ui.err='';ui.flash='';go('beleg');
 }
 function parseNow(pre){
   const t=ui.paste;
@@ -636,7 +1195,7 @@ function pieBlock(sl,act,sel,centerLbl){
 function dueDays(iso){return iso?Math.round((parseD(iso)-parseD(today()))/864e5):null}
 function dueCls(iso){const n=dueDays(iso);return n==null?'soon':n<0?'due':n<=3?'due':'soon'}
 function dueText(iso){const n=dueDays(iso);return n==null?'ohne Datum':n<0?`seit ${-n} ${-n===1?'Tag':'Tagen'} überfällig`:n===0?'heute fällig':`fällig in ${n} ${n===1?'Tag':'Tagen'}`}
-const CHANGES={'2.6.0':['Mehrere Belege auf einmal: Fotos oder PDFs zusammen auswählen oder teilen, die App arbeitet sie nacheinander ab.','Steuer: neue Art „Vorsorge (Versicherungen)“ und eine Jahresübersicht, sortiert wie die Steuererklärung (Werbungskosten, Vorsorge, Handwerker, Krankheitskosten).','Bei Versicherungen unter Fixkosten schlägt die App die passende Steuer-Art vor.'],'2.5.0':['Schnelleingabe im Monat und unter „Beleg“: „Kaffee 3,50“ eintippen, fertig. Unbekanntes fragt die App einmal nach.','Planen aufgeräumt: Einnahmen, Fixkosten, Verträge und Sparziele zum Aufklappen, „+ Neu“ gleich oben.','Monat und Mehr kompakter: Details erst beim Antippen.','Kategorien: Name und Farbe änderbar, 24 Farben zur Auswahl.','Kurzbefehl „Schnelleingabe“: lange auf das App-Symbol drücken.'],'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
+const CHANGES={'2.8.0':['Belegerkennung gründlich überarbeitet: Schiefe, quer oder kopfüber fotografierte Bons dreht die App selbst gerade. Schatten, Stoff im Hintergrund und dunkle Screenshots gleicht sie aus.','Die App setzt Zeilen aus den Wortpositionen selbst zusammen, kombiniert zwei Lesedurchgänge und rechnet Summen, Mengen und Steuerzeilen nach. Bei einer falsch gelesenen Ziffer schlägt sie die Korrektur vor.','Verlesene Produktnamen gleicht die App mit deinen früheren Belegen ab. Neu: Knopf „Drehen und neu lesen“.','Automatische Sicherheitskopie: Die letzten drei Stände liegen unter „Mehr → Backup & Daten“.','Neu zum Einschalten unter „Mehr“: Kassensturz (Kontostand eintragen und sehen, was nicht erfasst ist) und Rücklagen (Töpfe für Unregelmäßiges).','Jahresrückblick unter „Verlauf“: Ausgaben, Kategorien im Vergleich zum Vorjahr, Händler und Produkte mit den höchsten Ausgaben.'],'2.7.1':['Bessere Fotos: Tisch oder Stoff neben dem Bon stören die Erkennung nicht mehr.','Bons, bei denen der Artikelname unter dem Preis steht, werden richtig zugeordnet.','Summen- und Steuerzeilen werden sicherer erkannt, auch bei Lesefehlern wie „gesant“ oder „EC-Cash mit PIN“.'],'2.7.0':['GiroCode auf Rechnungen: Die App liest den QR-Code für die Überweisung. Betrag und Empfänger stimmen damit sicher.','Kassen-Code auf Bons: Viele Kassenbons haben einen QR-Code der Kasse. Daraus übernimmt die App Summe, Datum und ob bar oder mit Karte bezahlt wurde.'],'2.6.1':['Rechnungen mit Tabelle (Menge, MwSt., Einzelpreis, Gesamt) wie vom REWE-Lieferservice werden vollständig gelesen.','Schlecht lesbare Preise wie „798€“ werden über Menge × Einzelpreis und die Belegsumme geprüft. Was sich nicht bestätigen lässt, ist gelb markiert.','Mehrere Screenshots einer langen Rechnung lassen sich zu einem Beleg zusammenfügen.','Pfand-Rückgaben werden abgezogen, Zahlungs- und Bankzeilen nicht mehr als Produkte gezählt.'],'2.6.0':['Mehrere Belege auf einmal: Fotos oder PDFs zusammen auswählen oder teilen, die App arbeitet sie nacheinander ab.','Steuer: neue Art „Vorsorge (Versicherungen)“ und eine Jahresübersicht, sortiert wie die Steuererklärung (Werbungskosten, Vorsorge, Handwerker, Krankheitskosten).','Bei Versicherungen unter Fixkosten schlägt die App die passende Steuer-Art vor.'],'2.5.0':['Schnelleingabe im Monat und unter „Beleg“: „Kaffee 3,50“ eintippen, fertig. Unbekanntes fragt die App einmal nach.','Planen aufgeräumt: Einnahmen, Fixkosten, Verträge und Sparziele zum Aufklappen, „+ Neu“ gleich oben.','Monat und Mehr kompakter: Details erst beim Antippen.','Kategorien: Name und Farbe änderbar, 24 Farben zur Auswahl.','Kurzbefehl „Schnelleingabe“: lange auf das App-Symbol drücken.'],'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
 let newList=null;
 function computeNew(){
   const seen=state.prefs.seenVersion;
@@ -652,7 +1211,7 @@ function yearDue(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),d=+t.slice(8,
 function vMonat(){
   const ym=ui.ym;const st=monthStats(ym);
   const rs=st.rs.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const left=st.inc-st.out-st.saved;
+  const left=st.left;
   const ids=new Set(Object.keys(st.by).filter(k=>Math.abs(st.by[k])>0.004));
   if(state.useBudgets)Object.keys(state.budgets).forEach(k=>{if(+state.budgets[k]>0&&state.categories.some(c=>c.id===k))ids.add(k)});
   const cats=[...ids].map(id=>[id,st.by[id]||0]).sort((a,b)=>b[1]-a[1]);
@@ -680,10 +1239,11 @@ function vMonat(){
   h+=`<div class="figs">
     <div class="fig"><span>Einnahmen</span><b>${fmt(st.inc)}</b></div>
     <div class="fig"><span>Ausgaben</span><b>${fmt(st.out)}</b></div>
-    <div class="fig main"><span>Übrig${st.saved>0?`<small>nach ${fmt(st.saved)} Sparen</small>`:''}</span><b class="${left<0?'minus':''}">${fmt(left)}</b></div></div>
+    <div class="fig main"><span>Übrig${st.saved>0?`<small>nach ${fmt(st.saved)} Sparen</small>`:''}${st.potPaid>0?`<small>${fmt(st.potPaid)} aus Rücklagen</small>`:''}</span><b class="${left<0?'minus':''}">${fmt(left)}</b></div></div>
     <div class="split" aria-hidden="true">${(()=>{const base=Math.max(st.out+Math.max(0,st.saved),st.inc,0.01);const w=v=>Math.max(0,v)/base*100;
       return `<i style="width:${w(st.fixOut)}%;background:var(--accent)"></i><i style="width:${w(st.varOut)}%;background:var(--var)"></i><i style="width:${w(st.saved)}%;background:var(--ok)"></i>`})()}</div>
     <div class="legend"><span style="--c:var(--accent)">Fixkosten <b class="num">${fmt(st.fixOut)}</b></span><span style="--c:var(--var)">Belege <b class="num">${fmt(st.varOut)}</b></span>${st.saved?`<span style="--c:var(--ok)">Gespart <b class="num">${fmt(st.saved)}</b></span>`:''}${st.inc>0?`<span style="--c:var(--line)">frei</span>`:''}</div>`;
+  if(state.prefs.kasse)h+=vKasse(ym);
   const mode=state.prefs.chart==='pie'?'pie':'bar';
   h+=`<div class="sechead"><h2>Nach Kategorie</h2><div class="seg" role="group" aria-label="Darstellung"><button data-act="chart-mode" data-m="bar" aria-pressed="${mode==='bar'}">Balken</button><button data-act="chart-mode" data-m="pie" aria-pressed="${mode==='pie'}">Kuchen</button></div></div>`;
   if(!cats.length) h+=`<div class="list"><div class="empty">Noch keine Ausgaben in diesem Monat.</div></div>`;
@@ -700,8 +1260,8 @@ function vMonat(){
     }
   }
   if(state.goals.length){const op=ui.monOpen==='goals',tot=state.goals.reduce((a,g)=>a+goalBalance(g),0),tg=state.goals.reduce((a,g)=>a+(+g.target||0),0);
-    h+=`<div class="acc" style="margin-top:22px">${accHead('mgoals',op,'Sparziele',fmt(tot),`${state.goals.length===1?'1 Ziel':state.goals.length+' Ziele'}${tg?` · Ziel ${fmt(tg)}`:''}`,'mon-goals')}
-    ${op?`<div class="acc-p"><div class="bars">${state.goals.map(g=>{const i=goalInfo(g);return `<div class="bar" style="--c:var(--ok)"><span class="lbl">${esc(g.name)}${i.done?'<small>erreicht</small>':''}</span><span class="num">${fmt(i.bal)}${i.target?` / ${fmt(i.target)}`:''}</span>${i.target?`<div class="track"><i style="width:${i.pct}%"></i></div>`:''}</div>`}).join('')}</div>
+    h+=`<div class="acc" style="margin-top:22px">${accHead('mgoals',op,state.goals.some(g=>g.pot)?(state.goals.some(g=>!g.pot)?'Sparziele & Rücklagen':'Rücklagen'):'Sparziele',fmt(tot),`${state.goals.length===1?'1 Eintrag':state.goals.length+' Einträge'}${tg?` · Ziel ${fmt(tg)}`:''}`,'mon-goals')}
+    ${op?`<div class="acc-p"><div class="bars">${state.goals.map(g=>{const i=goalInfo(g);return `<div class="bar" style="--c:var(--ok)"><span class="lbl">${esc(g.name)}${g.pot?'<small>Rücklage</small>':i.done?'<small>erreicht</small>':''}</span><span class="num">${fmt(i.bal)}${i.target?` / ${fmt(i.target)}`:''}</span>${i.target?`<div class="track"><i style="width:${i.pct}%"></i></div>`:''}</div>`}).join('')}</div>
     <button class="ghost" data-act="plan-go" data-sec="sparziele" style="margin-top:6px">Sparziele verwalten</button></div>`:''}</div>`;
   }
   h+=`<h2>Belege im ${MONTHS[+ym.slice(5)-1]}</h2>`;
@@ -711,11 +1271,50 @@ function vMonat(){
   h+=`<p class="muted small" style="margin-top:14px">Letzte Sicherung: ${state.lastBackup?new Date(state.lastBackup).toLocaleDateString('de-DE'):'noch keine'} · <a href="#mehr">Backup unter Mehr</a></p>`;
   return h;
 }
+/* Kassensturz: Kontostand am Monatsende mit dem vergleichen, was die App erwartet */
+function lastDay(ym){const [y,m]=ym.split('-').map(Number);return ym+'-'+pad(new Date(y,m,0).getDate())}
+function kasseInfo(ym){
+  const k=state.kasse[ym]||{},pv=state.kasse[addMonths(ym,-1)]||{},deb=k.deb||[];
+  const st=monthStats(ym);let inc=0,fix=0;const irr=[];
+  // Nicht monatliche Einträge zählen hier nur, wenn sie in diesem Monat wirklich gebucht wurden (dann voll)
+  state.fixed.forEach(f=>{if(!activeIn(f,ym))return;let v;
+    if(f.interval>1){irr.push(f);v=deb.includes(f.id)?f.amount:0}else v=shareOf(f);
+    if(f.kind==='in')inc+=v;else fix+=v});
+  let open=0;st.rs.forEach(r=>{if(r.open)open+=rTotal(r)});
+  const booked=r2(fix+st.varOut-open-st.potPaid+st.saved);
+  const has=k.bal!=null&&pv.bal!=null;
+  const actual=has?r2(pv.bal+inc-k.bal):null;
+  return {k,pv,irr,deb,inc:r2(inc),booked,actual,diff:has?r2(actual-booked):null,has,saved:st.saved};
+}
+function vKasse(ym){
+  const i=kasseInfo(ym),op=ui.monOpen==='mkasse',mo=MONTHS[+ym.slice(5)-1],pm=MONTHS[+addMonths(ym,-1).slice(5)-1];
+  const val=!i.has?null:Math.abs(i.diff)<0.5?'stimmt':fmt(Math.abs(i.diff));
+  const sub=!i.has?'Kontostand eintragen':Math.abs(i.diff)<0.5?'Konto und App passen zusammen':i.diff>0?'nicht erfasst':'mehr auf dem Konto als erwartet';
+  let h=`<div class="acc" style="margin-top:14px">${accHead('mkasse',op,'Kassensturz',val,sub,'mon-open')}`;
+  if(op){
+    h+=`<div class="acc-p"><form class="form inpanel" id="kasse-form" autocomplete="off">
+      <label class="f" for="k-prev">Kontostand Ende ${pm}<input id="k-prev" inputmode="decimal" value="${i.pv.bal!=null?fmtIn(i.pv.bal):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
+      <label class="f" for="k-bal">Kontostand Ende ${mo}<input id="k-bal" inputmode="decimal" value="${i.k.bal!=null?fmtIn(i.k.bal):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
+      ${i.irr.length?`<div class="full"><p class="small" style="margin:0 0 4px;font-weight:600">Im ${mo} wirklich gebucht?</p>${i.irr.map(f=>`<label class="check small"><input type="checkbox" data-kdeb="${f.id}"${i.deb.includes(f.id)?' checked':''}> ${esc(f.name)} · ${fmt(f.amount)} ${INTERVALS[f.interval]||''}</label>`).join('')}</div>`:''}
+      ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
+      <div class="row full"><button class="primary" type="submit">Speichern</button></div></form>`;
+    if(i.has){
+      h+=`<div class="lines" style="margin-top:10px"><div><span class="n">Einnahmen</span><span class="num">${fmt(i.inc)}</span></div>
+        <div><span class="n">Laut Konto ausgegeben</span><span class="num">${fmt(i.actual)}</span></div>
+        <div><span class="n">In der App erfasst${i.saved>0?' (mit Sparen)':''}</span><span class="num">${fmt(i.booked)}</span></div>
+        <div><span class="n"><b>${i.diff>=0?'Nicht erfasst':'Mehr auf dem Konto als erwartet'}</b></span><span class="num"><b>${fmt(Math.abs(i.diff))}</b></span></div></div>`;
+      if(i.diff>=0.5)h+=`<div class="row" style="margin-top:8px"><button data-act="kasse-book" data-ym="${ym}">${fmt(i.diff)} als „nicht erfasst“ buchen</button></div>`;
+      else if(i.diff<=-0.5)h+=`<p class="small muted" style="margin:8px 0 0">Mögliche Gründe: eine Einnahme fehlt, ein Beleg ist doppelt oder eine Sparrate liegt noch auf dem Konto.</p>`;
+    }
+    h+=`<p class="small muted" style="margin:8px 0 0">Am besten am Monatsende eintragen. Die App rechnet so, als ob Sparraten und Rücklagen das Konto verlassen. Offene Rechnungen und aus Rücklagen bezahlte Belege zählen nicht mit.</p></div>`;
+  }
+  return h+`</div>`;
+}
 function receiptRow(r){
   const open=ui.open===r.id;const cs=[...new Set(r.items.map(i=>i.cat))];const t=rTotal(r);
   return `<div class="item"><button class="head" data-act="toggle" data-id="${r.id}" aria-expanded="${open}">
     <span class="d">${r.date.slice(8)}.${r.date.slice(5,7)}.</span>
-    <span class="m">${esc(r.merchant||'Ohne Händler')}${r.open?` <span class="tag ${dueCls(r.due)}">offen${r.due?' · bis '+fmtD(r.due).slice(0,6):''}</span>`:''}${r.refund?' <span class="tag ret">Retoure</span>':''}${r.example?' <span class="tag ex">Beispiel</span>':''}<span class="dots">${cs.map(c=>`<i class="dot" style="--c:${cat(c).color}" title="${esc(cat(c).name)}"></i>`).join('')}</span></span>
+    <span class="m">${esc(r.merchant||'Ohne Händler')}${r.open?` <span class="tag ${dueCls(r.due)}">offen${r.due?' · bis '+fmtD(r.due).slice(0,6):''}</span>`:''}${r.refund?' <span class="tag ret">Retoure</span>':''}${r.pot&&state.goals.some(g=>g.id===r.pot)?' <span class="tag">Rücklage</span>':''}${r.example?' <span class="tag ex">Beispiel</span>':''}<span class="dots">${cs.map(c=>`<i class="dot" style="--c:${cat(c).color}" title="${esc(cat(c).name)}"></i>`).join('')}</span></span>
     <span class="num${t<0?' neg':''}">${fmt(t)}</span></button>
     ${open?`<div class="detail"><div class="lines">${r.items.map(i=>`<div><span class="n">${esc(i.name)}${i.tax?` <span class="tag tax" title="${esc(TAXKINDS[i.tax]||'')}">§ absetzbar</span>`:''}</span><span class="c">${esc(cat(i.cat).name)}</span><span class="num">${fmt(i.amount)}</span></div>`).join('')}</div>
     <div class="row">${ui.confirmDel===r.id?`<span class="small">Beleg wirklich löschen?</span><button class="danger" data-act="del-yes" data-id="${r.id}">Ja, löschen</button><button data-act="del-no">Abbrechen</button>`
@@ -812,6 +1411,13 @@ function vBeleg(){
   const d=ui.draft;
   if(ui.ocr) return `<h2>Bon wird gelesen</h2>${qBar()}<div class="drop"><b id="ocr-label">${esc(ui.ocr.label)}</b><div class="progress"><i id="ocr-bar" style="width:${Math.round((ui.ocr.p||0)*100)}%"></i></div>
     <p class="muted small" style="margin:0">Die Texterkennung läuft auf deinem Handy. Beim ersten Mal lädt sie einmalig die deutschen Sprachdaten (einige MB). Für ein sicheres Ergebnis liest sie den Bon bei Bedarf zweimal.</p></div>`;
+  if(!d&&ui.pick){const n=ui.pick.length;
+    return `<h2>${n} Dateien gewählt</h2><div class="pickbox">
+      <p style="margin:0">Sind das <b>${n} verschiedene Belege</b> oder <b>Seiten einer einzigen Rechnung</b>, zum Beispiel mehrere Screenshots einer langen Online-Rechnung?</p>
+      <button class="primary" data-act="pick-sep">${n} einzelne Belege</button>
+      <button data-act="pick-merge">Seiten einer Rechnung zusammenfügen</button>
+      <button class="ghost" data-act="pick-cancel">Abbrechen</button>
+      <p class="muted small" style="margin:0">Tipp: Ist die Rechnung eine PDF-Datei, teile lieber die PDF direkt. Die liest die App ohne Lesefehler.</p></div>`}
   if(!d){
     return `${ui.flash?`<div class="flash" role="status">${esc(ui.flash)}</div>`:''}
     <h2>Neuer Beleg</h2>
@@ -826,6 +1432,7 @@ function vBeleg(){
     <label class="f" for="bon-text">Text des Belegs
       <textarea id="bon-text" rows="8" placeholder="REWE Markt GmbH&#10;BIO BANANEN   1,78 B&#10;…&#10;SUMME   EUR   12,92">${esc(ui.paste)}</textarea></label>
     ${ui.err?`<p class="err" role="alert">${esc(ui.err)}</p>`:''}
+    ${ui.err&&ui.lastFile?`<div class="row" style="margin:6px 0 10px"><button data-act="rot-reread">↻ Foto drehen und neu lesen</button></div>`:''}
     ${ui.err&&ui.queue&&ui.queue.length?`<div class="row" style="margin:6px 0 10px"><button class="primary" data-act="queue-next">Weiter mit dem nächsten Beleg</button><button class="ghost" data-act="queue-stop">Restliche überspringen</button></div>`:''}
     <div class="row" style="margin-top:10px"><button class="primary" data-act="parse">Text auswerten</button>
       <button data-act="sample">Beispielbon</button><button class="ghost" data-act="manual">Ohne Bon eintragen</button></div>`;
@@ -840,20 +1447,27 @@ function vBeleg(){
   let h=`<h2>${d.refund?(d.id?'Retoure bearbeiten':'Retoure erfassen'):(d.id?'Beleg bearbeiten':'Beleg prüfen')}</h2>${d.id?'':qBar()}`;
   if(d.from) h+=`<div class="note">Vorausgefüllt aus ${esc(d.from)}. Das Datum ist heute. Prüfe die Beträge und speichere.</div>`;
   if(d.collapsed) h+=`<div class="note">Die Einzelpositionen ließen sich nicht sicher lesen. Weil hier alles in eine Kategorie gehört, habe ich den Gesamtbetrag übernommen.<div class="row" style="margin-top:8px"><button data-act="show-items">Erkannte Einzelpositionen anzeigen</button></div></div>`;
+  if(d.giro&&!d.id) h+=`<div class="note"><b>GiroCode gelesen:</b> ${d.giro.amount?fmt(d.giro.amount)+' an ':''}${esc(d.giro.name||'Empfänger')}${d.giro.ref?` · ${esc(d.giro.ref.slice(0,60))}`:''}. Der Betrag stammt aus dem Code und ist sicher.</div>`;
+  if(d.tse&&!d.id) h+=`<div class="note"><b>Kassen-Code gelesen:</b> ${fmt(d.tse.total)}${d.tse.vat19&&d.tse.vat7?` (19&nbsp;%: ${fmt(d.tse.vat19)}, 7&nbsp;%: ${fmt(d.tse.vat7)})`:''}${d.tse.pay?`, bezahlt ${d.tse.pay==='bar'?'bar':d.tse.pay==='unbar'?'mit Karte':'bar und mit Karte'}`:''}. Summe und Datum stammen aus dem Code.</div>`;
+  if(d.warn&&d.warn.length&&!d.id) h+=`<div class="note warn"><b>Das Foto ist ${d.warn.includes('unscharf')?'unscharf':d.warn.includes('sehr dunkel')?'sehr dunkel':'aus großem Abstand aufgenommen'}.</b> ${d.warn.includes('klein')&&d.warn.length===1?'Die Schrift ist im Bild sehr klein.':''} Prüfe die Beträge genau oder fotografiere den Bon noch einmal: näher ran, ruhig halten, gutes Licht.</div>`;
+  if(d.fix&&!d.id&&d.items[d.fix.i]) h+=`<div class="note"><b>Die Summe geht nicht auf.</b> Sie stimmt genau, wenn „${esc(d.items[d.fix.i].name)}“ ${fmt(d.fix.amount)} statt ${esc(d.items[d.fix.i].amount)} € kostet. Vermutlich wurde eine Ziffer falsch gelesen.<div class="row" style="margin-top:8px"><button data-act="apply-fix">${fmt(d.fix.amount)} übernehmen</button></div></div>`;
+  if(d.pages>1&&!d.id) h+=`<div class="note">${d.pages} Seiten zu einem Beleg zusammengefügt.</div>`;
+  {const nc=d.items.filter(i=>i.check).length;if(nc&&!d.id)h+=`<div class="note warn"><b>${nc} ${nc===1?'Betrag war':'Beträge waren'} schwer lesbar</b> und ${nc===1?'ist':'sind'} gelb markiert. Bitte mit dem Beleg vergleichen.</div>`}
   if(d.gross) h+=`<div class="note">Netto-Rechnung erkannt: ${fmt(d.gross.vat)} MwSt. sind anteilig auf die Positionen verteilt.</div>`;
   if(d.fixHint&&!d.id){const f=state.fixed.find(x=>x.id===d.fixHint);if(f)h+=`<div class="note warn">Passt das zu deinen Fixkosten „${esc(f.name)}“ (${fmt(f.amount)} ${INTERVALS[f.interval]||''})? Dann würde es doppelt zählen. Erfasse hier nur eine Nachzahlung oder verwirf den Beleg.</div>`}
   if(d.refund&&!d.id) h+=`<div class="note">Entferne die Positionen, die du behalten hast. Gespeichert wird der Betrag als Gutschrift und von den Ausgaben abgezogen.</div>`;
   if(open) h+=`<div class="note warn" role="alert"><b>${open} ${open===1?'Position kennt':'Positionen kennt'} die App noch nicht.</b> Wähle die Kategorie einmal aus. Beim nächsten Mal ordnet die App sie selbst zu.${anySugg?`<div class="row" style="margin-top:8px"><button data-act="accept-all">Alle Vorschläge übernehmen</button></div>`:''}</div>`;
   h+=`<form class="bon" id="draft" autocomplete="off">
     ${ui.photoUrl&&!d.id?`<details class="photo" style="margin-bottom:12px"><summary class="small" style="cursor:pointer;font-weight:600">Foto zum Vergleich anzeigen</summary><img src="${ui.photoUrl}" alt="Foto des Belegs" style="margin-top:8px"></details>`:''}
+    ${ui.lastFile&&!d.id&&!(d.pages>1)?`<div class="row" style="margin:-4px 0 12px"><button type="button" class="ghost" data-act="rot-reread">↻ Drehen und neu lesen</button></div>`:''}
     <div class="meta"><label class="f merchant" for="d-merchant">Händler<input id="d-merchant" data-f="merchant" value="${esc(d.merchant)}" placeholder="z. B. REWE"></label>
       <label class="f" for="d-date">Datum<input id="d-date" type="date" data-f="date" value="${esc(d.date)}"></label>
       <label class="f" for="d-total">Bon-Summe<input id="d-total" inputmode="decimal" data-f="total" value="${tot!=null?fmtIn(tot):''}" placeholder="optional" style="font-family:var(--f-mono)"></label></div>
     ${d.dateGuessed?`<p class="hint">Kein Datum auf dem Bon gefunden, heute eingetragen. Bitte prüfen.</p>`:''}
     <label class="check"><input id="d-refund" type="checkbox" data-f="refund"${d.refund?' checked':''}> Retoure oder Erstattung (wird abgezogen)</label>
-    <div class="pos">${d.items.map((it,i)=>`<div class="p${!it.cat?' needs':''}">
+    <div class="pos">${d.items.map((it,i)=>`<div class="p${!it.cat?' needs':''}${it.check?' chk':''}">
       <input id="n-${i}" data-row="${i}" data-k="name" value="${esc(it.name)}" aria-label="Bezeichnung Position ${i+1}" placeholder="Bezeichnung">
-      <input id="a-${i}" class="amt" data-row="${i}" data-k="amount" inputmode="decimal" value="${esc(it.amount)}" aria-label="Betrag Position ${i+1}" placeholder="0,00">
+      <input id="a-${i}" class="amt${it.check?' chk':''}" ${it.check?'title="Unsicher gelesen, bitte prüfen" ':''}data-row="${i}" data-k="amount" inputmode="decimal" value="${esc(it.amount)}" aria-label="Betrag Position ${i+1}" placeholder="0,00">
       <button type="button" class="icon ghost" data-act="del-row" data-i="${i}" aria-label="Position ${i+1} entfernen">×</button>
       <div class="catline"><select id="c-${i}" data-row="${i}" data-k="cat" aria-label="Kategorie Position ${i+1}">${catOpts(it.cat,'– Kategorie wählen –')}</select>
       ${!it.cat?(it.suggest?`<button type="button" class="ghost" data-act="accept" data-i="${i}">Vorschlag: ${esc(cat(it.suggest).name)}</button>`:`<span class="why">Unbekannt</span>`)
@@ -865,6 +1479,7 @@ function vBeleg(){
     <p id="diff" class="small" style="margin:6px 0 0;color:var(--warn)">${diffText(tot,sum)}</p>
     ${!d.refund?`<div class="openbox"><label class="check small"><input id="d-open" type="checkbox" data-f="open"${d.open?' checked':''}> Rechnung noch nicht bezahlt</label>
       ${d.open?`<label class="f" for="d-due" style="margin-top:6px">Zahlbar bis<input id="d-due" type="date" data-f="due" value="${esc(d.due||'')}"></label>`:''}</div>`:''}
+    ${!d.refund&&state.goals.some(g=>g.pot)?`<label class="f" for="d-pot" style="margin-top:12px">Bezahlt aus<select id="d-pot" data-f="pot"><option value="">dem laufenden Monat</option>${state.goals.filter(g=>g.pot).map(g=>`<option value="${g.id}"${d.pot===g.id?' selected':''}>Rücklage „${esc(g.name)}“ (${fmt(goalBalance(g))})</option>`).join('')}</select></label>`:''}
     ${!d.refund&&!d.fromTpl?`<label class="check small" style="margin-top:12px"><input id="d-tpl" type="checkbox" data-f="asTemplate"${d.asTemplate?' checked':''}> Als Vorlage merken (für wiederkehrende Käufe)</label>`:''}
     ${mk&&!d.refund?`<label class="check small" style="margin-top:12px"><input id="d-always" type="checkbox" data-f="always"${d.always?' checked':''}> Bei „${esc(d.merchant)}“ immer ${cats.length===1?`„${esc(cat(cats[0]).name)}“`:'die Kategorie der ersten Position'} verwenden</label>`:''}
   </form>
@@ -941,35 +1556,38 @@ function vContracts(){
     <span class="num">${fmtD(c.deadline)}</span>
     <span class="s">letzter Kündigungstag · ${deadlineText(c)} · läuft sonst bis ${fmtD(c.end)}, dann ${(+f.renew||1)===1?'monatlich weiter':`+${f.renew} Monate`}</span></div>`).join('')}</div>`;
 }
-function goalForm(e){
+function goalForm(e,pot){
+  const W=pot?'Rücklage':'Sparziel';
   return `<form class="form inpanel" id="goal-form" autocomplete="off">
-    <b class="full">${e?'Sparziel bearbeiten':'Neues Sparziel'}</b>
-    <label class="f full" for="g-name">Name<input id="g-name" value="${esc(e?e.name:'')}" placeholder="z. B. Notgroschen"></label>
+    <b class="full">${e?W+' bearbeiten':(pot?'Neue Rücklage':'Neues Sparziel')}</b>
+    <label class="f full" for="g-name">Name<input id="g-name" value="${esc(e?e.name:'')}" placeholder="${pot?'z. B. Auto, Geschenke, Nachzahlungen':'z. B. Notgroschen'}"></label>
     <label class="f" for="g-target">Zielbetrag (optional)<input id="g-target" inputmode="decimal" value="${e&&e.target?fmtIn(e.target):''}" placeholder="1.500,00" style="font-family:var(--f-mono)"></label>
-    <label class="f" for="g-due">Ziel bis (optional)<input id="g-due" type="month" value="${esc(e?e.due||'':'')}"></label>
-    <label class="f" for="g-rate">Sparrate pro Monat<input id="g-rate" inputmode="decimal" value="${e&&rateFor(e,thisYM())?fmtIn(rateFor(e,thisYM())):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
-    ${e?'':`<label class="f" for="g-start">Startguthaben (optional)<input id="g-start" inputmode="decimal" placeholder="0,00" style="font-family:var(--f-mono)"></label>`}
-    <p class="muted small full" style="margin:0">Die Sparrate zählt ab diesem Monat jeden Monat automatisch und verringert dein „Übrig“.</p>
+    ${pot?'':`<label class="f" for="g-due">Ziel bis (optional)<input id="g-due" type="month" value="${esc(e?e.due||'':'')}"></label>`}
+    <label class="f" for="g-rate">${pot?'Betrag pro Monat':'Sparrate pro Monat'}<input id="g-rate" inputmode="decimal" value="${e&&rateFor(e,thisYM())?fmtIn(rateFor(e,thisYM())):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
+    ${e?'':`<label class="f" for="g-start">Startguthaben (optional, schon vorhandenes Geld)<input id="g-start" inputmode="decimal" placeholder="0,00" style="font-family:var(--f-mono)"></label>`}
+    <p class="muted small full" style="margin:0">${pot?'Der Betrag fließt ab diesem Monat jeden Monat in die Rücklage und verringert dein „Übrig“. Zahlst du später einen Beleg aus der Rücklage, belastet er den Monat nicht.':'Die Sparrate zählt ab diesem Monat jeden Monat automatisch und verringert dein „Übrig“.'}</p>
     ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
-    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':'Sparziel anlegen'}</button><button type="button" data-act="goal-cancel">Abbrechen</button></div></form>`;
+    <div class="row full"><button class="primary" type="submit">${e?'Änderung speichern':W+' anlegen'}</button><button type="button" data-act="goal-cancel">Abbrechen</button></div></form>`;
 }
-function vGoals(){
-  const e=ui.goalEdit&&state.goals.find(g=>g.id===ui.goalEdit);
-  let h=(e||ui.goalNew)?goalForm(e):`<button class="addbtn" data-act="goal-new">+ Neues Sparziel</button>`;
-  if(!state.goals.length) return h+`<p class="muted small" style="margin:8px 2px 0">Noch kein Sparziel, z. B. „Notgroschen“ oder „Urlaub“.</p>`;
-  h+=`<div class="sublist">${state.goals.map(g=>{const i=goalInfo(g),open=ui.goalOpen===g.id;
+function vGoals(pot){
+  pot=!!pot;const list=state.goals.filter(g=>!!g.pot===pot);
+  const e=ui.goalEdit&&list.find(g=>g.id===ui.goalEdit);
+  let h=(e||ui.goalNew===(pot?'pot':'goal'))?goalForm(e,pot):`<button class="addbtn" data-act="goal-new" data-pot="${pot?1:''}">+ ${pot?'Neue Rücklage':'Neues Sparziel'}</button>`;
+  if(!list.length) return h+`<p class="muted small" style="margin:8px 2px 0">${pot?'Noch keine Rücklage. Rücklagen sind Töpfe für Unregelmäßiges wie Autoreparatur, Geschenke oder Nachzahlungen.':'Noch kein Sparziel, z. B. „Notgroschen“ oder „Urlaub“.'}</p>`;
+  h+=`<div class="sublist">${list.map(g=>{const i=goalInfo(g),open=ui.goalOpen===g.id;
     const deps=state.deposits.filter(d=>d.goalId===g.id).sort((a,b)=>b.date.localeCompare(a.date));
     const lines=[];
-    if(i.rate>0)lines.push(`Sparrate ${fmt(i.rate)} / Monat`);else lines.push('keine Sparrate');
-    if(i.done)lines.push('<b style="color:var(--ok)">Ziel erreicht</b>');
+    if(i.rate>0)lines.push(`${pot?'':'Sparrate '}${fmt(i.rate)} / Monat`);else lines.push(pot?'kein Monatsbetrag':'keine Sparrate');
+    if(pot){const used=state.receipts.filter(r=>r.pot===g.id).reduce((a,r)=>a+rTotal(r),0);if(used>0)lines.push(`bisher ${fmt(used)} daraus bezahlt`)}
+    if(i.done&&!pot)lines.push('<b style="color:var(--ok)">Ziel erreicht</b>');
     else{if(i.need!=null)lines.push(`für ${ymShort(g.due)} nötig: ${fmt(i.need)} / Monat`);else if(g.due)lines.push(`Ziel ${ymShort(g.due)}`);
       if(i.eta)lines.push(`mit aktueller Rate erreicht im ${ymLabel(i.eta)}`)}
     const df=ui.depositFor===g.id;
-    return `<div class="goal"><button class="fr-h" data-act="goal-toggle" data-id="${g.id}" aria-expanded="${open}"><span class="t"><span class="nm">${esc(g.name)}</span>${g.example?' <span class="tag ex">Beispiel</span>':''}${i.done?' <span class="tag ret">erreicht</span>':''}</span>
-      <span class="num">${fmt(i.bal)}${i.target?` <small class="muted">/ ${fmt(i.target)}</small>`:''}</span></button>
+    return `<div class="goal"><button class="fr-h" data-act="goal-toggle" data-id="${g.id}" aria-expanded="${open}"><span class="t"><span class="nm">${esc(g.name)}</span>${g.example?' <span class="tag ex">Beispiel</span>':''}${i.done&&!pot?' <span class="tag ret">erreicht</span>':''}</span>
+      <span class="num${i.bal<0?' minus':''}">${fmt(i.bal)}${i.target?` <small class="muted">/ ${fmt(i.target)}</small>`:''}</span></button>
       ${i.target?`<div class="track gtrack"><i style="width:${i.pct}%"></i></div>`:''}
       ${open?`<p class="small muted" style="margin:0">${lines.join(' · ')}</p>
-      ${i.done&&i.rate>0?`<div class="row"><button data-act="goal-stop" data-id="${g.id}">Sparrate ab nächstem Monat beenden</button></div>`:''}
+      ${i.done&&i.rate>0&&!pot?`<div class="row"><button data-act="goal-stop" data-id="${g.id}">Sparrate ab nächstem Monat beenden</button></div>`:''}
       ${df?`<form class="row" id="deposit-form" data-goal="${g.id}" autocomplete="off" style="margin-top:4px">
         <input id="dep-amount" inputmode="decimal" placeholder="Betrag" style="flex:1 1 7em;width:auto;font-family:var(--f-mono)">
         <input id="dep-date" type="date" value="${today()}" style="flex:1 1 9em;width:auto">
@@ -985,7 +1603,7 @@ function vFixed(){
   const st=monthStats(ui.ym),o=ui.planOpen,mo=ymLabel(ui.ym);
   const ins=state.fixed.filter(f=>f.kind==='in').sort((a,b)=>shareOf(b)-shareOf(a));
   const outs=state.fixed.filter(f=>f.kind!=='in').sort((a,b)=>shareOf(b)-shareOf(a));
-  const cs=contracts(),gTotal=state.goals.reduce((a,g)=>a+goalBalance(g),0),gRate=state.goals.reduce((a,g)=>a+rateFor(g,thisYM()),0);
+  const cs=contracts(),GL=state.goals.filter(g=>!g.pot),PL=state.goals.filter(g=>g.pot),gTotal=GL.reduce((a,g)=>a+goalBalance(g),0),gRate=GL.reduce((a,g)=>a+rateFor(g,thisYM()),0),pTotal=PL.reduce((a,g)=>a+goalBalance(g),0),pRate=PL.reduce((a,g)=>a+rateFor(g,thisYM()),0);
   const n=(k,one,many)=>`${k} ${k===1?one:many}`;
   const rest=st.inc-st.fixOut;
   let h=`<h2>Planen</h2><div class="acc">`;
@@ -996,8 +1614,10 @@ function vFixed(){
   h+=`<div class="acc-sum"><span>Bleibt nach Fixkosten</span><b class="num${rest<0?' minus':''}">${fmt(rest)}</b></div>`;
   h+=accHead('vertraege',o==='vertraege','Verträge',null,cs.length?`${cs.length} · nächste Frist ${fmtD(cs[0].c.deadline)}`:'keine mit Kündigungsfrist','plan-open');
   if(o==='vertraege')h+=`<div class="acc-p">${vContracts()}</div>`;
-  h+=accHead('sparziele',o==='sparziele','Sparziele',fmt(gTotal),state.goals.length?`${n(state.goals.length,'Ziel','Ziele')}${gRate?` · ${fmt(gRate)} / Monat`:''}`:'noch keins','plan-open');
-  if(o==='sparziele')h+=`<div class="acc-p">${vGoals()}</div>`;
+  h+=accHead('sparziele',o==='sparziele','Sparziele',fmt(gTotal),GL.length?`${n(GL.length,'Ziel','Ziele')}${gRate?` · ${fmt(gRate)} / Monat`:''}`:'noch keins','plan-open');
+  if(o==='sparziele')h+=`<div class="acc-p">${vGoals(false)}</div>`;
+  if(state.prefs.pots||PL.length){h+=accHead('ruecklagen',o==='ruecklagen','Rücklagen',PL.length?fmt(pTotal):null,PL.length?`${n(PL.length,'Topf','Töpfe')}${pRate?` · ${fmt(pRate)} / Monat`:''}`:'noch keine','plan-open');
+  if(o==='ruecklagen')h+=`<div class="acc-p">${vGoals(true)}</div>`}
   h+=`</div><p class="muted small" style="margin-top:10px">Beträge für ${mo}. Jährliche Kosten sind auf den Monat umgerechnet.</p>`;
   return h;
 }
@@ -1029,9 +1649,42 @@ function vVerlauf(){
   <div class="chart">${svg}</div>
   <div class="legend" style="margin-top:8px"><span style="--c:var(--accent)">Fixkosten</span><span style="--c:var(--var)">Belege</span>${ui.chartCat?'':'<span style="--c:var(--ok)">Einnahmen (Linie)</span>'}</div>
   <p class="muted small" style="margin-top:8px">Tippe auf einen Monat, um ihn zu öffnen. Durchschnitt (Monate mit Daten): Ausgaben <b class="num">${fmt(avgOut)}</b>${ui.chartCat?'':` · Einnahmen <b class="num">${fmt(avgInc)}</b>`}</p>`;
+  h+=vYear();
   h+=`<h2>Suche</h2><label class="f" for="search">In allen Belegen suchen<input id="search" type="search" value="${esc(ui.search)}" placeholder="z. B. Kaffee, Zalando, Bananen"></label>`;
   h+=`<div id="search-res">${searchResults()}</div>`;
   return h;
+}
+function yearStats(y){
+  const ys=String(y),now=thisYM();let inc=0,out=0,saved=0,nM=0;const by={},months=[];
+  for(let m=1;m<=12;m++){const ym=ys+'-'+pad(m);if(ym>now)break;const st=monthStats(ym);
+    if(!(st.out>0||st.inc>0))continue;nM++;inc+=st.inc;out+=st.out;saved+=st.saved;months.push({ym,out:st.out});
+    Object.keys(st.by).forEach(k=>by[k]=(by[k]||0)+st.by[k])}
+  const mer={},prod={};
+  state.receipts.forEach(r=>{if(!r.date||!r.date.startsWith(ys))return;
+    const mk=(r.merchant||'Ohne Händler').trim();const e=mer[mk]=mer[mk]||{name:mk,sum:0,n:0};e.sum+=rTotal(r);e.n++;
+    r.items.forEach(i=>{const k=normKey(i.name);if(!k)return;const q=prod[k]=prod[k]||{name:i.name,sum:0,n:0};q.sum+=+i.amount||0;q.n++})});
+  return {inc,out,saved,nM,by,months,mer:Object.values(mer).sort((a,b)=>b.sum-a.sum),prod:Object.values(prod).sort((a,b)=>b.sum-a.sum)};
+}
+function vYear(){
+  const years=dataYears();if(!ui.yr||!years.includes(ui.yr))ui.yr=years[0];
+  const y=ui.yr,s=yearStats(y),p=yearStats(y-1),op=!!ui.yrOpen;
+  let h=`<div class="acc" style="margin-top:22px">${accHead('jahr',op,'Jahresrückblick',s.nM?fmt(s.out):null,s.nM?`${y} · ${s.nM} ${s.nM===1?'Monat':'Monate'} mit Daten`:'noch keine Daten','yr-open')}`;
+  if(!op)return h+`</div>`;
+  h+=`<div class="acc-p"><label class="f" for="yr-sel" style="margin-bottom:10px">Jahr<select id="yr-sel">${years.map(v=>`<option value="${v}"${v===y?' selected':''}>${v}</option>`).join('')}</select></label>`;
+  if(!s.nM)return h+`<div class="list"><div class="empty">Für ${y} gibt es noch keine Daten.</div></div></div></div>`;
+  const kept=s.inc-s.out,quote=s.inc>0?kept/s.inc*100:null;
+  h+=`<div class="figs"><div class="fig"><span>Einnahmen</span><b>${fmt(s.inc)}</b></div><div class="fig"><span>Ausgaben</span><b>${fmt(s.out)}</b></div>
+    <div class="fig main"><span>Nicht ausgegeben${quote!=null?`<small>${Math.round(quote)} % der Einnahmen</small>`:''}</span><b class="${kept<0?'minus':''}">${fmt(kept)}</b></div></div>
+    <p class="small muted" style="margin:8px 0 0">${s.saved>0?`Davon gezielt zurückgelegt (Sparziele und Rücklagen): <b class="num">${fmt(s.saved)}</b>. `:''}Im Schnitt ${fmt(s.out/s.nM)} Ausgaben pro Monat${p.nM?`, im Vorjahr ${fmt(p.out/p.nM)}`:''}.</p>`;
+  const hi=s.months.slice().sort((a,b)=>b.out-a.out)[0],lo=s.months.slice().sort((a,b)=>a.out-b.out)[0];
+  if(s.months.length>1)h+=`<div class="lines" style="margin-top:10px"><div><span class="n">Teuerster Monat</span><span class="c">${MONTHS[+hi.ym.slice(5)-1]}</span><span class="num">${fmt(hi.out)}</span></div><div><span class="n">Günstigster Monat</span><span class="c">${MONTHS[+lo.ym.slice(5)-1]}</span><span class="num">${fmt(lo.out)}</span></div></div>`;
+  const cats=Object.entries(s.by).filter(([,v])=>Math.abs(v)>0.004).sort((a,b)=>b[1]-a[1]),max=cats.length?Math.max(...cats.map(c=>c[1])):1;
+  h+=`<h3>Kategorien ${y}</h3><div class="bars">${cats.map(([id,v])=>{const c=cat(id),av=v/s.nM,pa=p.nM&&p.by[id]?p.by[id]/p.nM:0;
+    const ch=pa>0.5?Math.round((av-pa)/pa*100):null;
+    return `<div class="bar" style="--c:${c.color}"><span class="lbl">${esc(c.name)}</span><span class="num">${fmt(v)}</span><div class="track"><i style="width:${Math.max(0,v/max*100)}%"></i></div><span class="bud">Ø ${fmt(av)} im Monat${ch!=null?` · ${ch>0?'+':''}${ch} % zum Vorjahr`:''}</span></div>`}).join('')}</div>`;
+  if(s.mer.length)h+=`<h3>Wo du am meisten ausgibst</h3><div class="list lines" style="padding:6px 14px">${s.mer.slice(0,5).map(m=>`<div style="padding:4px 0"><span class="n">${esc(m.name)}</span><span class="c">${m.n} ${m.n===1?'Beleg':'Belege'}</span><span class="num">${fmt(m.sum)}</span></div>`).join('')}</div>`;
+  if(s.prod.length)h+=`<h3>Wofür du am meisten ausgibst</h3><div class="list lines" style="padding:6px 14px">${s.prod.slice(0,10).map(m=>`<div style="padding:4px 0"><span class="n">${esc(m.name)}</span><span class="c">${m.n}×</span><span class="num">${fmt(m.sum)}</span></div>`).join('')}</div>`;
+  return h+`</div></div>`;
 }
 function searchResults(){
   let h='';const q=ui.search.trim().toLowerCase();
@@ -1089,6 +1742,12 @@ function vMehr(){
   h+=sec('sperre','App-Sperre',getLock()?'an':'aus',()=>noH2(vLockSettings()));
   h+=sec('budgets','Budgets',state.useBudgets?`an · ${nB} ${nB===1?'Budget':'Budgets'}`:'aus',()=>`<div class="box"><label class="check"><input id="use-budgets" type="checkbox"${state.useBudgets?' checked':''}> Monatsbudgets verwenden</label>
     ${state.useBudgets?`<p class="muted small" style="margin:0">Leer lassen = kein Budget. Ab 80 % warnt die App, über 100 % wird es rot.</p><div class="list">${state.categories.map(c=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) 8em"><span><i class="dot" style="--c:${c.color}"></i> ${esc(c.name)}</span><input id="bud-${c.id}" data-budget="${c.id}" inputmode="decimal" value="${+state.budgets[c.id]>0?fmtIn(state.budgets[c.id]):''}" placeholder="–" aria-label="Budget ${esc(c.name)}"></div>`).join('')}</div>`:''}</div>`);
+  h+=sec('kasse','Kassensturz',state.prefs.kasse?'an':'aus',()=>`<div class="box"><label class="check"><input id="use-kasse" type="checkbox"${state.prefs.kasse?' checked':''}> Kassensturz verwenden</label>
+    <p class="muted small" style="margin:0">Du trägst einmal im Monat deinen Kontostand ein. Die App vergleicht ihn mit Einnahmen und erfassten Ausgaben und zeigt, wie viel Geld du nicht erfasst hast. Die Eingabe erscheint dann im Reiter „Monat“.</p></div>`);
+  {const nP=state.goals.filter(g=>g.pot).length;
+  h+=sec('pots','Rücklagen',state.prefs.pots?`an${nP?` · ${nP} ${nP===1?'Topf':'Töpfe'}`:''}`:(nP?`aus · ${nP} ${nP===1?'Topf':'Töpfe'} vorhanden`:'aus'),()=>`<div class="box"><label class="check"><input id="use-pots" type="checkbox"${state.prefs.pots?' checked':''}> Rücklagen verwenden</label>
+    <p class="muted small" style="margin:0">Rücklagen sind Töpfe für Unregelmäßiges wie Autoreparatur, Geschenke oder Nachzahlungen. Jeden Monat fließt ein fester Betrag hinein und verringert dein „Übrig“. Einen Beleg kannst du dann „aus der Rücklage“ bezahlen, er belastet den Monat nicht. Du legst sie unter „Planen“ an.</p>
+    ${!state.prefs.pots&&nP?`<p class="small" style="margin:0;color:var(--warn);font-weight:600">Deine ${nP===1?'Rücklage zählt':nP+' Rücklagen zählen'} weiter, bis du sie unter „Planen“ löschst.</p>`:''}</div>`)}
   h+=sec('kategorien','Kategorien',`${state.categories.length} Kategorien`,catPanel);
   h+=sec('gelernt','Gelernte Zuordnungen',`${Object.keys(state.rules.products).length} Produkte · ${mers.length} Händler`,()=>`<p class="muted small" style="margin:0 2px 8px">Beim Speichern merkt sich die App Produkt und Kategorie. Hier korrigierst du Fehler.</p>
     <label class="f" for="rule-filter">Produkte durchsuchen<input id="rule-filter" value="${esc(ui.ruleFilter)}" placeholder="z. B. Milch"></label>
@@ -1109,6 +1768,7 @@ function vMehr(){
   </div>
   ${ui.exportText?`<label class="f" for="export-text" style="margin-top:10px">Backup-Text${ui.exportEnc?' (verschlüsselt)':' (unverschlüsselt)'}<textarea id="export-text" rows="4" readonly>${esc(ui.exportText)}</textarea></label>
   <div class="row" style="margin-top:8px"><button data-act="copy">Kopieren</button><span id="copy-msg" class="small muted"></span></div>`:''}
+  ${snapHtml()}
   <h3>Backup wiederherstellen</h3>
   <p class="muted small">Auch ein Backup aus der Browser-Version von Kassensturz funktioniert hier.</p>
   <div class="box">
@@ -1327,7 +1987,7 @@ function render(){
   if(header)header.hidden=false;
   document.querySelectorAll('.tabs a').forEach(a=>a.setAttribute('aria-current',a.dataset.tab===ui.tab?'page':'false'));
   document.getElementById('month-label').textContent=ymLabel(ui.ym);
-  let h=storageOk?'':`<div class="note bad"><b>Speichern ist blockiert.</b> Änderungen gehen beim Schließen verloren. Prüfe, ob der Speicher des Handys voll ist, und sichere deine Daten unter „Mehr“.</div>`;
+  let h=(ui.rescue&&ui.snaps&&ui.snaps.length?`<div class="note bad" role="alert"><b>Deine gespeicherten Daten ließen sich nicht lesen.</b> Es gibt eine Sicherheitskopie vom ${esc(fmtD(ui.snaps[0].day.slice(0,10)))} mit ${ui.snaps[0].n} Belegen.<div class="row" style="margin-top:8px"><button class="primary" data-act="snap-yes" data-day="${esc(ui.snaps[0].day)}">Sicherheitskopie zurückholen</button><button class="ghost" data-act="rescue-no">Nein, neu anfangen</button></div></div>`:'')+(storageOk?'':`<div class="note bad"><b>Speichern ist blockiert.</b> Änderungen gehen beim Schließen verloren. Prüfe, ob der Speicher des Handys voll ist, und sichere deine Daten unter „Mehr“.</div>`);
   if(ui.updateAvail) h+=`<div class="note update" role="status"><b>Neue Version ${esc(ui.updateAvail)} verfügbar.</b> ${ui.draft?'Speichere oder verwirf zuerst deinen Beleg, sonst geht er verloren.':'Deine Daten bleiben erhalten.'}${getLock()?' Danach fragt die App einmal nach deiner PIN.':''}
     <div class="row" style="margin-top:8px"><button class="primary" data-act="app-reload">Jetzt laden</button><button class="ghost" data-act="update-later">Später</button></div></div>`;
   h+=ui.tab==='beleg'?vBeleg():ui.tab==='fixkosten'?vFixed():ui.tab==='verlauf'?vVerlauf():ui.tab==='mehr'?vMehr():vMonat();
@@ -1387,7 +2047,7 @@ function saveDraft(){
     const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
     state.rules.merchants[mk]={cat:d.always?items[0].cat:top,always:!!d.always}}
   const rec={id:d.id||uid(),date:d.date,merchant:d.merchant.trim(),items:recItems};
-  if(d.refund)rec.refund=true;if(d.refOf)rec.refOf=d.refOf;
+  if(d.refund)rec.refund=true;if(d.refOf)rec.refOf=d.refOf;if(d.pay)rec.pay=d.pay;if(d.pot&&!d.refund&&state.goals.some(g=>g.pot&&g.id===d.pot))rec.pot=d.pot;
   if(!d.refund&&d.open){rec.open=true;rec.due=d.due||''}
   const ix=state.receipts.findIndex(r=>r.id===rec.id);
   if(ix>=0)state.receipts[ix]=rec;else state.receipts.push(rec);
@@ -1417,7 +2077,7 @@ function download(name,content,type){
 const csvCell=v=>{v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 const csvNum=n=>fmtIn(n);
 function csv(rows){return '﻿'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n')}
-function monthRow(ym){const s=monthStats(ym);return [ymLabel(ym),csvNum(s.inc),csvNum(s.out),csvNum(s.fixOut),csvNum(s.varOut),csvNum(s.saved),csvNum(s.inc-s.out-s.saved),...state.categories.map(c=>csvNum(s.by[c.id]||0))]}
+function monthRow(ym){const s=monthStats(ym);return [ymLabel(ym),csvNum(s.inc),csvNum(s.out),csvNum(s.fixOut),csvNum(s.varOut),csvNum(s.saved),csvNum(s.left),...state.categories.map(c=>csvNum(s.by[c.id]||0))]}
 const MONTH_HEAD=()=>['Monat','Einnahmen','Ausgaben gesamt','Fixkosten','Belege','Gespart','Übrig',...state.categories.map(c=>c.name)];
 function markYear(y,part){if(!y)return;const e=state.yearExport[y]=state.yearExport[y]||{};e[part]=true;if(e.csv&&e.tax&&e.backup)e.done=true;persist()}
 function exportCsv(kind,year){
@@ -1492,7 +2152,7 @@ document.addEventListener('click',ev=>{
     case 'del-yes':state.receipts=state.receipts.filter(r=>r.id!==id);persist();ui.confirmDel=null;ui.flash='Beleg gelöscht.';render();break;
     case 'edit':{const r=state.receipts.find(x=>x.id===id);if(!r)break;
       const m=state.rules.merchants[normKey(r.merchant)];
-      ui.draft={id:r.id,refund:!!r.refund,refOf:r.refOf,merchant:r.merchant,date:r.date,total:null,always:!!(m&&m.always),open:!!r.open,due:r.due||'',
+      ui.draft={id:r.id,refund:!!r.refund,refOf:r.refOf,pay:r.pay||'',pot:r.pot||'',merchant:r.merchant,date:r.date,total:null,always:!!(m&&m.always),open:!!r.open,due:r.due||'',
         items:r.items.map(it=>({name:it.name,amount:fmtIn(r.refund?Math.abs(it.amount):it.amount),cat:it.cat,tax:it.tax||'',src:'gespeichert',flag:false}))};
       ui.err='';ui.dup=null;go('beleg');break}
     case 'refund':{const r=state.receipts.find(x=>x.id===id);if(!r)break;
@@ -1508,8 +2168,8 @@ document.addEventListener('click',ev=>{
     case 'seen':state.prefs.seenVersion=APP_VERSION;newList=[];persist();render();break;
     case 'app-reload':location.reload();break;
     case 'update-later':ui.updateAvail=null;ui.updateSnoozed=true;render();break;
-    case 'show-items':if(ui.draft&&ui.draft.collapsed){ui.draft.items=ui.draft.collapsed;ui.draft.collapsed=null;render()}break;
-    case 'total-only':{const d=ui.draft;if(!d||d.total==null)break;const cs={};d.items.forEach(x=>{if(x.cat)cs[x.cat]=(cs[x.cat]||0)+Math.abs(toNum(x.amount)||0)});
+    case 'show-items':if(ui.draft)ui.draft.fix=null;if(ui.draft&&ui.draft.collapsed){ui.draft.items=ui.draft.collapsed;ui.draft.collapsed=null;render()}break;
+    case 'total-only':if(ui.draft)ui.draft.fix=null;{const d=ui.draft;if(!d||d.total==null)break;const cs={};d.items.forEach(x=>{if(x.cat)cs[x.cat]=(cs[x.cat]||0)+Math.abs(toNum(x.amount)||0)});
       const top=Object.entries(cs).sort((a,b)=>b[1]-a[1])[0];const mi=merchantInfo(d.merchant);
       d.items=[{name:d.merchant||'Einkauf',amount:fmtIn(d.total),cat:mi.cat||(top?top[0]:''),src:mi.cat?'Händler':(top?'häufigste Kategorie':''),flag:false,suggest:null,tax:''}];render();break}
     case 'paid':{const r=state.receipts.find(x=>x.id===id);if(r){r.open=false;r.paidOn=today();persist();ui.flash=`„${r.merchant||'Rechnung'}“ als bezahlt markiert.`}render();break}
@@ -1525,24 +2185,37 @@ document.addEventListener('click',ev=>{
     case 'sample':ui.paste=SAMPLE();ui.err='';render();break;
     case 'parse':{ui.paste=(document.getElementById('bon-text')||{}).value||'';parseNow();break}
     case 'manual':ui.draft={id:null,refund:false,merchant:'',date:today(),total:null,always:false,items:[{name:'',amount:'',cat:'',src:'',flag:true}]};ui.err='';ui.dup=null;ui.dupOk=false;render();break;
-    case 'add-row':d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();{const n=document.getElementById('n-'+(d.items.length-1));if(n)n.focus()}break;
-    case 'del-row':d.items.splice(i,1);if(!d.items.length)d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();break;
-    case 'add-diff':{const sum=d.items.reduce((s,x)=>s+(toNum(x.amount)||0),0);const df=r2(d.total-sum);
+    case 'add-row':if(ui.draft)ui.draft.fix=null;d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();{const n=document.getElementById('n-'+(d.items.length-1));if(n)n.focus()}break;
+    case 'del-row':if(ui.draft)ui.draft.fix=null;d.items.splice(i,1);if(!d.items.length)d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();break;
+    case 'add-diff':if(ui.draft)ui.draft.fix=null;{const sum=d.items.reduce((s,x)=>s+(toNum(x.amount)||0),0);const df=r2(d.total-sum);
       d.items.push({name:'Nicht erkannte Position',amount:fmtIn(df),cat:'',src:'',flag:true,suggest:merchantInfo(d.merchant).cat||'sonstiges'});render();break}
     case 'accept':d.items[i].cat=d.items[i].suggest;d.items[i].src='Vorschlag übernommen';ui.err='';render();break;
     case 'accept-all':d.items.forEach(x=>{if(!x.cat&&x.suggest){x.cat=x.suggest;x.src='Vorschlag übernommen'}});ui.err='';render();break;
     case 'save':saveDraft();break;
     case 'save-dup':ui.dupOk=true;ui.dup=null;saveDraft();break;
     case 'cancel':ui.draft=null;ui.err='';ui.dup=null;if(ui.photoUrl){URL.revokeObjectURL(ui.photoUrl);ui.photoUrl=null}if(ui.qTotal>1&&queueNext())break;render();break;
+    case 'rot-reread':if(ui.lastFile)runOCR(ui.lastFile,{rot:((ui.rot||0)+90)%360});break;
+    case 'apply-fix':{const d=ui.draft;if(d&&d.fix&&d.items[d.fix.i]){d.items[d.fix.i].amount=fmtIn(d.fix.amount);d.items[d.fix.i].check=false;d.fix=null;render()}break}
+    case 'snap-ask':ui.snapConfirm=b.dataset.day;render();break;
+    case 'snap-no':ui.snapConfirm=null;render();break;
+    case 'snap-yes':snapRestore(b.dataset.day);break;
+    case 'rescue-no':ui.rescue=false;ui.rescueDone=true;loadBroken=false;render();break;
+    case 'kasse-book':{const ym=b.dataset.ym,i=kasseInfo(ym);if(i.has&&i.diff>=0.5){
+      state.receipts.push({id:uid(),date:ym===thisYM()?today():lastDay(ym),merchant:'Nicht erfasst',items:[{name:'Nicht erfasste Ausgaben (Kassensturz)',amount:i.diff,cat:'sonstiges'}]});
+      persist();ui.flash=`${fmt(i.diff)} als „nicht erfasst“ gebucht.`}render();break}
+    case 'yr-open':ui.yrOpen=!ui.yrOpen;render();if(ui.yrOpen)scrollToHead('jahr');break;
+    case 'pick-sep':{const f=ui.pick||[];ui.pick=null;startQueue(f);break}
+    case 'pick-merge':{const f=ui.pick||[];runPages(f);break}
+    case 'pick-cancel':ui.pick=null;render();break;
     case 'queue-next':ui.err='';queueNext();break;
     case 'queue-stop':ui.queue=[];ui.err='';if(!ui.draft&&!ui.ocr)queueNext();else render();break;
     case 'jump':{ev.preventDefault();const n=document.getElementById(b.dataset.to);if(n)n.scrollIntoView({block:'start'});break}
-    case 'goal-new':ui.goalNew=true;ui.goalEdit=null;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
+    case 'goal-new':ui.goalNew=b.dataset.pot?'pot':'goal';ui.goalEdit=null;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
     case 'goal-edit':ui.goalEdit=id;ui.goalNew=false;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
     case 'goal-cancel':ui.goalEdit=null;ui.goalNew=false;ui.err='';render();break;
     case 'goal-del':ui.confirmGoal=id;render();break;
     case 'goal-del-no':ui.confirmGoal=null;render();break;
-    case 'goal-del-yes':state.goals=state.goals.filter(g=>g.id!==id);state.deposits=state.deposits.filter(d=>d.goalId!==id);ui.confirmGoal=null;persist();render();break;
+    case 'goal-del-yes':state.goals=state.goals.filter(g=>g.id!==id);state.receipts.forEach(r=>{if(r.pot===id)delete r.pot});state.deposits=state.deposits.filter(d=>d.goalId!==id);ui.confirmGoal=null;persist();render();break;
     case 'goal-stop':{const g=state.goals.find(x=>x.id===id);if(g){const nx=addMonths(thisYM(),1);g.rates=(g.rates||[]).filter(r=>r.from!==nx);g.rates.push({from:nx,amount:0});persist()}render();break}
     case 'dep':ui.depositFor=id;ui.depositSign=+b.dataset.sign||1;ui.goalEdit=null;ui.goalNew=false;ui.err='';render();{const n=document.getElementById('dep-amount');if(n)n.focus()}break;
     case 'dep-cancel':ui.depositFor=null;ui.err='';render();break;
@@ -1618,7 +2291,7 @@ document.addEventListener('input',ev=>{
   if(t.dataset.f==='merchant'){d.merchant=t.value;return}
   if(t.dataset.f==='date'){d.date=t.value;d.dateGuessed=false;return}
   if(t.dataset.f==='total'){const v=toNum(t.value);d.total=t.value.trim()&&!isNaN(v)?v:null;updateSums();return}
-  if(t.dataset.row!=null&&t.dataset.k!=='cat'&&t.dataset.k!=='tax'){d.items[+t.dataset.row][t.dataset.k]=t.value;if(t.dataset.k==='amount')updateSums();return}
+  if(t.dataset.row!=null&&t.dataset.k!=='cat'&&t.dataset.k!=='tax'){d.items[+t.dataset.row][t.dataset.k]=t.value;if(t.dataset.k==='amount'){d.items[+t.dataset.row].check=false;t.classList.remove('chk');updateSums()}return}
 });
 document.addEventListener('change',ev=>{
   const t=ev.target,d=ui.draft;
@@ -1630,10 +2303,13 @@ document.addEventListener('change',ev=>{
     return}
   if(t.id==='fx-tax'){delete t.dataset.auto;const hint=document.getElementById('fx-taxhint');if(hint)hint.textContent='';return}
   if(t.dataset.tpl){const x=state.templates.find(q=>q.id===t.dataset.tpl);if(x&&t.value.trim()){x.name=t.value.trim().slice(0,40);persist()}return}
-  if(t.id==='photo'){const fs=t.files?[...t.files]:[];t.value='';if(fs.length===1){ui.queue=null;ui.qTotal=0;runOCR(fs[0])}else startQueue(fs);return}
+  if(t.id==='photo'){const fs=t.files?[...t.files]:[];t.value='';askMulti(fs);return}
   if(t.id==='tax-year'){ui.taxYear=+t.value;render();return}
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
   if(t.id==='use-budgets'){state.useBudgets=t.checked;persist();render();return}
+  if(t.id==='use-kasse'){state.prefs.kasse=t.checked;persist();render();return}
+  if(t.id==='use-pots'){state.prefs.pots=t.checked;persist();render();return}
+  if(t.id==='yr-sel'){ui.yr=+t.value;render();return}
   if(t.dataset.budget){const v=toNum(t.value);if(t.value.trim()&&!isNaN(v)&&v>0)state.budgets[t.dataset.budget]=r2(v);else delete state.budgets[t.dataset.budget];persist();t.value=state.budgets[t.dataset.budget]?fmtIn(state.budgets[t.dataset.budget]):'';return}
   if(t.dataset.rule){const k=t.dataset.key;if(t.dataset.rule==='p')state.rules.products[k]=t.value;else if(state.rules.merchants[k])state.rules.merchants[k].cat=t.value;persist();return}
   if(t.id==='bk-plain'){ui.plainBackup=t.checked;return}
@@ -1643,6 +2319,7 @@ document.addEventListener('change',ev=>{
   if(!d)return;
   if(t.dataset.f==='merchant'){const before=JSON.stringify(d.items.map(i=>[i.cat,i.suggest]));reclassify();if(JSON.stringify(d.items.map(i=>[i.cat,i.suggest]))!==before)renderKeepFocus();return}
   if(t.dataset.f==='always'){d.always=t.checked;return}
+  if(t.dataset.f==='pot'){d.pot=t.value;return}
   if(t.dataset.f==='asTemplate'){d.asTemplate=t.checked;return}
   if(t.dataset.f==='open'){d.open=t.checked;if(d.open&&!d.due)d.due=addDays(d.date||today(),14);renderKeepFocus();return}
   if(t.dataset.f==='due'){d.due=t.value;return}
@@ -1688,16 +2365,23 @@ document.addEventListener('submit',ev=>{
     else Object.assign(o,{contractEnd:'',noticeVal:null,noticeUnit:'',renew:null});
     if(ui.fixedEdit){const e=state.fixed.find(x=>x.id===ui.fixedEdit);if(e){Object.assign(e,o);delete e.example}}else state.fixed.push({id:uid(),...o});
     ui.fixedEdit=null;ui.fxForm=null;ui.fixedKind=kind;ui.err='';persist();render();return}
+  if(f.id==='kasse-form'){
+    const ym=ui.ym,pm=addMonths(ym,-1),a=val('k-prev').trim(),b2=val('k-bal').trim(),na=a?toNum(a):null,nb=b2?toNum(b2):null;
+    if((a&&isNaN(na))||(b2&&isNaN(nb))){ui.err='Kontostand bitte als Zahl angeben, z. B. 1.250,00.';render();return}
+    const set=(m,v)=>{const e=state.kasse[m]=state.kasse[m]||{};if(v==null)delete e.bal;else e.bal=r2(v)};
+    set(pm,na);set(ym,nb);
+    state.kasse[ym].deb=[...f.querySelectorAll('[data-kdeb]')].filter(x=>x.checked).map(x=>x.dataset.kdeb);
+    ui.err='';persist();render();return}
   if(f.id==='goal-form'){
     const name=val('g-name').trim(),tRaw=val('g-target').trim(),rRaw=val('g-rate').trim(),sRaw=val('g-start').trim();
     const target=tRaw?toNum(tRaw):0,rate=rRaw?toNum(rRaw):0,startAmt=sRaw?toNum(sRaw):0;
-    if(!name){ui.err='Bitte gib dem Sparziel einen Namen.';render();return}
+    const isPot=ui.goalNew==='pot';if(!name){ui.err='Bitte gib einen Namen an.';render();return}
     if(isNaN(target)||target<0||isNaN(rate)||rate<0||isNaN(startAmt)||startAmt<0){ui.err='Beträge bitte als Zahl angeben, z. B. 150,00.';render();return}
     const ym=thisYM();let g=ui.goalEdit&&state.goals.find(x=>x.id===ui.goalEdit);
-    if(g){g.name=name;g.target=r2(target);g.due=val('g-due');delete g.example;
+    if(g){g.name=name;g.target=r2(target);if(!g.pot)g.due=val('g-due');delete g.example;
       if(r2(rateFor(g,ym))!==r2(rate)){g.rates=(g.rates||[]).filter(r=>r.from!==ym);g.rates.push({from:ym,amount:r2(rate)})}}
-    else{g={id:'g'+uid(),name,target:r2(target),due:val('g-due'),rates:rate>0?[{from:ym,amount:r2(rate)}]:[]};state.goals.push(g);
-      if(startAmt>0)state.deposits.push({id:uid(),goalId:g.id,date:today(),amount:r2(startAmt),note:'Startguthaben'})}
+    else{g={id:'g'+uid(),name,target:r2(target),due:isPot?'':val('g-due'),rates:rate>0?[{from:ym,amount:r2(rate)}]:[]};if(isPot)g.pot=true;state.goals.push(g);
+      if(startAmt>0)state.deposits.push({id:uid(),goalId:g.id,date:today(),amount:r2(startAmt),note:'Startguthaben',start:true})}
     ui.goalEdit=null;ui.goalNew=false;ui.err='';persist();render();return}
   if(f.id==='deposit-form'){
     const a=toNum(val('dep-amount')),dt=val('dep-date')||today();
@@ -1728,8 +2412,7 @@ async function checkShared(){
     const img=await c.match('shared-image');if(img){const blob=await img.blob();files.push(new File([blob],'geteilt',{type:blob.type||'image/jpeg'}))}
     const txt=await c.match('shared-text');
     await c.delete('shared-image');await c.delete('shared-text');await c.delete('shared-count');
-    if(files.length===1){runOCR(files[0]);return}
-    if(files.length>1){startQueue(files);return}
+    if(files.length){askMulti(files);return}
     if(txt){ui.paste=await txt.text();ui.tab='beleg';parseNow()}
   }catch(e){}
 }
@@ -1793,7 +2476,7 @@ document.addEventListener('touchend',e=>{
   ui.slideDir=dx<0?'l':'r';go(TABS[i]);
 },{passive:true});
 document.addEventListener('touchcancel',()=>{tabSw=null;main.style.transform=''},{passive:true});
-function maybeTutorial(){if(!state.prefs.tutorialDone&&!ui.locked&&!ui.tut){ui.tut={topic:'start',i:0};render()}}
+function maybeTutorial(){if(loadBroken||ui.rescue)return;if(!state.prefs.tutorialDone&&!ui.locked&&!ui.tut){ui.tut={topic:'start',i:0};render()}}
 ui.locked=!!getLock();
 {const q=new URLSearchParams(location.search);const a=q.get('action');
   if(a==='photo'||a==='text'){ui.action=a;history.replaceState(null,'',location.pathname+'#beleg')}
@@ -1803,4 +2486,5 @@ maybeTutorial();
 function focusAction(){if(!ui.action||ui.locked||ui.tut)return;const n=document.getElementById(ui.action==='photo'?'photo-btn':ui.action==='quick'?'quick':'bon-text');if(n)n.focus();if(ui.action==='quick')ui.action=''}
 focusAction();
 checkShared();
+loadSnaps();
 })();

@@ -36,12 +36,19 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 3. Einen davon gedrückt halten und auf den Startbildschirm ziehen. Ein Tipp darauf öffnet direkt die Fotoauswahl bzw. das Schnelleingabe-Feld.
 
 ## Tipps
-- Bon-Foto direkt teilen: In der Galerie auf „Teilen“ → „Kassensturz“. Du kannst auch mehrere Fotos oder PDFs auf einmal markieren, die App geht sie dann nacheinander durch.
+- Bon-Foto direkt teilen: In der Galerie auf „Teilen“ → „Kassensturz“. Du kannst auch mehrere Fotos oder PDFs auf einmal markieren, die App geht sie dann nacheinander durch. Sind es Seiten einer einzigen Rechnung (z. B. mehrere Screenshots), wähle „Seiten einer Rechnung zusammenfügen“. Noch besser: Online-Rechnungen als PDF teilen, die liest die App ohne Lesefehler. Hat eine Rechnung einen GiroCode (QR-Code zum Überweisen) oder ein Kassenbon einen QR-Code, liest die App Betrag (und beim Bon Datum und Zahlungsart) direkt daraus. Achte darauf, dass der Code mit aufs Foto kommt.
 - Die Fotoerkennung lädt beim ersten Mal einmalig deutsche Sprachdaten (Internet nötig).
 - Unter „Mehr“ regelmäßig „Backup herunterladen“ und die Datei z. B. in Google Drive legen.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
 
+## Neu in 2.8
+- **Bon-Fotos:** Die App dreht schiefe oder quer aufgenommene Bons selbst gerade. Liegt sie einmal falsch, hilft „Drehen und neu lesen“ über dem Händler-Feld. Gelb markierte Beträge bitte mit dem Bon vergleichen.
+- **Sicherheitskopie:** Unter „Mehr → Backup & Daten“ liegen automatisch die letzten drei Stände. Das hilft bei Fehlern, ersetzt aber kein Backup: Geht das Handy verloren, sind auch die Kopien weg.
+- **Kassensturz:** Unter „Mehr“ einschalten. Dann im Reiter „Monat“ den Kontostand vom Monatsende eintragen. Die App zeigt, wie viel Geld du nicht erfasst hast.
+- **Rücklagen:** Unter „Mehr“ einschalten, dann unter „Planen“ Töpfe anlegen. Beim Beleg wählst du „Bezahlt aus“ und die Rücklage.
+- **Jahresrückblick:** Im Reiter „Verlauf“ ganz oben unter dem Diagramm.
+
 ## Sicherheit
 - Schalte bei GitHub die Zwei-Faktor-Anmeldung ein (Settings → Password and authentication). Wer dein GitHub-Konto hat, könnte die App verändern.
 - App-Sperre und verschlüsselte Backups findest du in der App unter „Mehr“.
-- Die App darf nur mit jsDelivr (für die Texterkennung) Verbindung aufnehmen. Alle anderen Server sind gesperrt.
+- Die App darf nur mit jsDelivr (für Texterkennung, PDF- und QR-Leser) Verbindung aufnehmen. Alle anderen Server sind gesperrt.
