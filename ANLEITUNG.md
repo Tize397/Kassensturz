@@ -44,7 +44,7 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 ## Neu in 2.8
 - **Bon-Fotos:** Die App dreht schiefe oder quer aufgenommene Bons selbst gerade. Liegt sie einmal falsch, hilft „Drehen und neu lesen“ über dem Händler-Feld. Gelb markierte Beträge bitte mit dem Bon vergleichen.
 - **Sicherheitskopie:** Unter „Mehr → Backup & Daten“ liegen automatisch die letzten drei Stände. Das hilft bei Fehlern, ersetzt aber kein Backup: Geht das Handy verloren, sind auch die Kopien weg.
-- **Kassensturz:** Unter „Mehr“ einschalten. Dann im Reiter „Monat“ den Kontostand vom Monatsende eintragen. Die App zeigt, wie viel Geld du nicht erfasst hast.
+- **Kassensturz:** Unter „Mehr“ einschalten. Dann im Reiter „Monat“ den Kontostand vom Monatsende eintragen. Die App zeigt, wie viel Geld du nicht erfasst hast. Bei einer Differenz fragt sie nach Bargeld im Portemonnaie und vergessenen Einträgen. Ab welchem Betrag sie nachfragt, stellst du unter „Mehr → Kassensturz“ ein.
 - **Rücklagen:** Unter „Mehr“ einschalten, dann unter „Planen“ Töpfe anlegen. Beim Beleg wählst du „Bezahlt aus“ und die Rücklage.
 - **Jahresrückblick:** Im Reiter „Verlauf“ ganz oben unter dem Diagramm.
 

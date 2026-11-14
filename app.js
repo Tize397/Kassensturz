@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.8.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.8.1'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -1195,7 +1195,7 @@ function pieBlock(sl,act,sel,centerLbl){
 function dueDays(iso){return iso?Math.round((parseD(iso)-parseD(today()))/864e5):null}
 function dueCls(iso){const n=dueDays(iso);return n==null?'soon':n<0?'due':n<=3?'due':'soon'}
 function dueText(iso){const n=dueDays(iso);return n==null?'ohne Datum':n<0?`seit ${-n} ${-n===1?'Tag':'Tagen'} überfällig`:n===0?'heute fällig':`fällig in ${n} ${n===1?'Tag':'Tagen'}`}
-const CHANGES={'2.8.0':['Belegerkennung gründlich überarbeitet: Schiefe, quer oder kopfüber fotografierte Bons dreht die App selbst gerade. Schatten, Stoff im Hintergrund und dunkle Screenshots gleicht sie aus.','Die App setzt Zeilen aus den Wortpositionen selbst zusammen, kombiniert zwei Lesedurchgänge und rechnet Summen, Mengen und Steuerzeilen nach. Bei einer falsch gelesenen Ziffer schlägt sie die Korrektur vor.','Verlesene Produktnamen gleicht die App mit deinen früheren Belegen ab. Neu: Knopf „Drehen und neu lesen“.','Automatische Sicherheitskopie: Die letzten drei Stände liegen unter „Mehr → Backup & Daten“.','Neu zum Einschalten unter „Mehr“: Kassensturz (Kontostand eintragen und sehen, was nicht erfasst ist) und Rücklagen (Töpfe für Unregelmäßiges).','Jahresrückblick unter „Verlauf“: Ausgaben, Kategorien im Vergleich zum Vorjahr, Händler und Produkte mit den höchsten Ausgaben.'],'2.7.1':['Bessere Fotos: Tisch oder Stoff neben dem Bon stören die Erkennung nicht mehr.','Bons, bei denen der Artikelname unter dem Preis steht, werden richtig zugeordnet.','Summen- und Steuerzeilen werden sicherer erkannt, auch bei Lesefehlern wie „gesant“ oder „EC-Cash mit PIN“.'],'2.7.0':['GiroCode auf Rechnungen: Die App liest den QR-Code für die Überweisung. Betrag und Empfänger stimmen damit sicher.','Kassen-Code auf Bons: Viele Kassenbons haben einen QR-Code der Kasse. Daraus übernimmt die App Summe, Datum und ob bar oder mit Karte bezahlt wurde.'],'2.6.1':['Rechnungen mit Tabelle (Menge, MwSt., Einzelpreis, Gesamt) wie vom REWE-Lieferservice werden vollständig gelesen.','Schlecht lesbare Preise wie „798€“ werden über Menge × Einzelpreis und die Belegsumme geprüft. Was sich nicht bestätigen lässt, ist gelb markiert.','Mehrere Screenshots einer langen Rechnung lassen sich zu einem Beleg zusammenfügen.','Pfand-Rückgaben werden abgezogen, Zahlungs- und Bankzeilen nicht mehr als Produkte gezählt.'],'2.6.0':['Mehrere Belege auf einmal: Fotos oder PDFs zusammen auswählen oder teilen, die App arbeitet sie nacheinander ab.','Steuer: neue Art „Vorsorge (Versicherungen)“ und eine Jahresübersicht, sortiert wie die Steuererklärung (Werbungskosten, Vorsorge, Handwerker, Krankheitskosten).','Bei Versicherungen unter Fixkosten schlägt die App die passende Steuer-Art vor.'],'2.5.0':['Schnelleingabe im Monat und unter „Beleg“: „Kaffee 3,50“ eintippen, fertig. Unbekanntes fragt die App einmal nach.','Planen aufgeräumt: Einnahmen, Fixkosten, Verträge und Sparziele zum Aufklappen, „+ Neu“ gleich oben.','Monat und Mehr kompakter: Details erst beim Antippen.','Kategorien: Name und Farbe änderbar, 24 Farben zur Auswahl.','Kurzbefehl „Schnelleingabe“: lange auf das App-Symbol drücken.'],'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
+const CHANGES={'2.8.1':['Kassensturz mit Rückfragen: Bei einer Differenz fragt die App nach Bargeld im Portemonnaie, zeigt Tage ohne Einträge und mögliche doppelte Belege.','Bargeld zählt beim Kassensturz mit: Abheben ist dann kein „nicht erfasst“ mehr.','Ab welcher Differenz die App nachfragt, stellst du unter „Mehr → Kassensturz“ ein (Standard 10 €).'],'2.8.0':['Belegerkennung gründlich überarbeitet: Schiefe, quer oder kopfüber fotografierte Bons dreht die App selbst gerade. Schatten, Stoff im Hintergrund und dunkle Screenshots gleicht sie aus.','Die App setzt Zeilen aus den Wortpositionen selbst zusammen, kombiniert zwei Lesedurchgänge und rechnet Summen, Mengen und Steuerzeilen nach. Bei einer falsch gelesenen Ziffer schlägt sie die Korrektur vor.','Verlesene Produktnamen gleicht die App mit deinen früheren Belegen ab. Neu: Knopf „Drehen und neu lesen“.','Automatische Sicherheitskopie: Die letzten drei Stände liegen unter „Mehr → Backup & Daten“.','Neu zum Einschalten unter „Mehr“: Kassensturz (Kontostand eintragen und sehen, was nicht erfasst ist) und Rücklagen (Töpfe für Unregelmäßiges).','Jahresrückblick unter „Verlauf“: Ausgaben, Kategorien im Vergleich zum Vorjahr, Händler und Produkte mit den höchsten Ausgaben.'],'2.7.1':['Bessere Fotos: Tisch oder Stoff neben dem Bon stören die Erkennung nicht mehr.','Bons, bei denen der Artikelname unter dem Preis steht, werden richtig zugeordnet.','Summen- und Steuerzeilen werden sicherer erkannt, auch bei Lesefehlern wie „gesant“ oder „EC-Cash mit PIN“.'],'2.7.0':['GiroCode auf Rechnungen: Die App liest den QR-Code für die Überweisung. Betrag und Empfänger stimmen damit sicher.','Kassen-Code auf Bons: Viele Kassenbons haben einen QR-Code der Kasse. Daraus übernimmt die App Summe, Datum und ob bar oder mit Karte bezahlt wurde.'],'2.6.1':['Rechnungen mit Tabelle (Menge, MwSt., Einzelpreis, Gesamt) wie vom REWE-Lieferservice werden vollständig gelesen.','Schlecht lesbare Preise wie „798€“ werden über Menge × Einzelpreis und die Belegsumme geprüft. Was sich nicht bestätigen lässt, ist gelb markiert.','Mehrere Screenshots einer langen Rechnung lassen sich zu einem Beleg zusammenfügen.','Pfand-Rückgaben werden abgezogen, Zahlungs- und Bankzeilen nicht mehr als Produkte gezählt.'],'2.6.0':['Mehrere Belege auf einmal: Fotos oder PDFs zusammen auswählen oder teilen, die App arbeitet sie nacheinander ab.','Steuer: neue Art „Vorsorge (Versicherungen)“ und eine Jahresübersicht, sortiert wie die Steuererklärung (Werbungskosten, Vorsorge, Handwerker, Krankheitskosten).','Bei Versicherungen unter Fixkosten schlägt die App die passende Steuer-Art vor.'],'2.5.0':['Schnelleingabe im Monat und unter „Beleg“: „Kaffee 3,50“ eintippen, fertig. Unbekanntes fragt die App einmal nach.','Planen aufgeräumt: Einnahmen, Fixkosten, Verträge und Sparziele zum Aufklappen, „+ Neu“ gleich oben.','Monat und Mehr kompakter: Details erst beim Antippen.','Kategorien: Name und Farbe änderbar, 24 Farben zur Auswahl.','Kurzbefehl „Schnelleingabe“: lange auf das App-Symbol drücken.'],'2.4.0':['Bessere Bon-Erkennung: Die App schneidet den Bon im Foto automatisch aus und liest ihn bei Bedarf zweimal.','Tankstellen-Bons wie von Aral werden erkannt.','PDF-Rechnungen öffnen, auch über „Teilen“ aus der Mail-App.','Netto-Rechnungen: MwSt. wird automatisch auf die Positionen verteilt.','Offene Rechnungen mit Zahlungsziel und Erinnerung.','Neue Steuer-Arten: Handwerkerleistungen und Krankheitskosten.','Hinweis, wenn eine Rechnung zu deinen Fixkosten passt.','Wischen nach links oder rechts wechselt zwischen den Reitern.','Kurze Anleitung: einmal beim Start und jederzeit unter „Mehr“, auch zu einzelnen Themen wie Sparzielen.']};
 let newList=null;
 function computeNew(){
   const seen=state.prefs.seenVersion;
@@ -1283,31 +1283,77 @@ function kasseInfo(ym){
   let open=0;st.rs.forEach(r=>{if(r.open)open+=rTotal(r)});
   const booked=r2(fix+st.varOut-open-st.potPaid+st.saved);
   const has=k.bal!=null&&pv.bal!=null;
-  const actual=has?r2(pv.bal+inc-k.bal):null;
-  return {k,pv,irr,deb,inc:r2(inc),booked,actual,diff:has?r2(actual-booked):null,has,saved:st.saved};
+  // Bargeld: Abheben ist nur Umschichten vom Konto ins Portemonnaie. Gerechnet wird mit Konto + Bargeld.
+  const cash=k.cash!=null&&pv.cash!=null,cashD=cash?r2(pv.cash-k.cash):0;
+  const actual=has?r2(pv.bal+inc-k.bal+cashD):null;
+  return {k,pv,irr,deb,inc:r2(inc),booked,actual,diff:has?r2(actual-booked):null,has,saved:st.saved,cash,cashD,rs:st.rs};
+}
+const kasseTol=()=>{const t=+state.prefs.kasseTol;return t>=0&&isFinite(t)&&state.prefs.kasseTol!==''&&state.prefs.kasseTol!=null?t:10};
+// Tage im Monat ohne einen einzigen Eintrag (bis heute)
+function emptyDays(ym,rs){
+  const last=ym===thisYM()?+today().slice(8):+lastDay(ym).slice(8),seen=new Set(rs.map(r=>+r.date.slice(8)));const out=[];
+  for(let d=1;d<=last;d++)if(!seen.has(d))out.push(d);return out;
+}
+// Mögliche doppelte Belege: gleicher Tag, gleicher Händler, gleicher Betrag
+function dupReceipts(rs){
+  const m=new Map(),out=[];
+  rs.forEach(r=>{if(r.example)return;const k=r.date+'|'+normKey(r.merchant)+'|'+rTotal(r).toFixed(2);if(m.has(k))out.push(r);else m.set(k,r)});
+  return out;
 }
 function vKasse(ym){
-  const i=kasseInfo(ym),op=ui.monOpen==='mkasse',mo=MONTHS[+ym.slice(5)-1],pm=MONTHS[+addMonths(ym,-1).slice(5)-1];
-  const val=!i.has?null:Math.abs(i.diff)<0.5?'stimmt':fmt(Math.abs(i.diff));
-  const sub=!i.has?'Kontostand eintragen':Math.abs(i.diff)<0.5?'Konto und App passen zusammen':i.diff>0?'nicht erfasst':'mehr auf dem Konto als erwartet';
+  const i=kasseInfo(ym),op=ui.monOpen==='mkasse',mo=MONTHS[+ym.slice(5)-1],pm=MONTHS[+addMonths(ym,-1).slice(5)-1],tol=kasseTol();
+  const ok=i.has&&Math.abs(i.diff)<0.5,acc=i.has&&i.k.accept!=null&&Math.abs(i.k.accept-i.diff)<0.005;
+  const val=!i.has?null:ok?'passt':fmt(Math.abs(i.diff));
+  const sub=!i.has?'Kontostand eintragen':ok?'Konto und App passen zusammen':acc?'Differenz so übernommen':i.diff>0?'nicht erfasst':'mehr Geld da als erwartet';
   let h=`<div class="acc" style="margin-top:14px">${accHead('mkasse',op,'Kassensturz',val,sub,'mon-open')}`;
   if(op){
+    const showCash=i.k.cash!=null||i.pv.cash!=null||ui.kCash;
+    const inp=(id,lab,v)=>`<label class="f" for="${id}">${lab}<input id="${id}" inputmode="decimal" value="${v!=null?fmtIn(v):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>`;
     h+=`<div class="acc-p"><form class="form inpanel" id="kasse-form" autocomplete="off">
-      <label class="f" for="k-prev">Kontostand Ende ${pm}<input id="k-prev" inputmode="decimal" value="${i.pv.bal!=null?fmtIn(i.pv.bal):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
-      <label class="f" for="k-bal">Kontostand Ende ${mo}<input id="k-bal" inputmode="decimal" value="${i.k.bal!=null?fmtIn(i.k.bal):''}" placeholder="0,00" style="font-family:var(--f-mono)"></label>
+      ${inp('k-prev','Kontostand Ende '+pm,i.pv.bal)}${inp('k-bal','Kontostand Ende '+mo,i.k.bal)}
+      ${showCash?inp('k-cprev','Bargeld Ende '+pm+(i.pv.cash==null?' (ungefähr)':''),i.pv.cash)+inp('k-cash','Bargeld jetzt im Portemonnaie',i.k.cash):''}
       ${i.irr.length?`<div class="full"><p class="small" style="margin:0 0 4px;font-weight:600">Im ${mo} wirklich gebucht?</p>${i.irr.map(f=>`<label class="check small"><input type="checkbox" data-kdeb="${f.id}"${i.deb.includes(f.id)?' checked':''}> ${esc(f.name)} · ${fmt(f.amount)} ${INTERVALS[f.interval]||''}</label>`).join('')}</div>`:''}
       ${ui.err?`<p class="err full" role="alert">${esc(ui.err)}</p>`:''}
       <div class="row full"><button class="primary" type="submit">Speichern</button></div></form>`;
     if(i.has){
       h+=`<div class="lines" style="margin-top:10px"><div><span class="n">Einnahmen</span><span class="num">${fmt(i.inc)}</span></div>
-        <div><span class="n">Laut Konto ausgegeben</span><span class="num">${fmt(i.actual)}</span></div>
+        <div><span class="n">Laut Konto${i.cash?' und Bargeld':''} ausgegeben</span><span class="num">${fmt(i.actual)}</span></div>
         <div><span class="n">In der App erfasst${i.saved>0?' (mit Sparen)':''}</span><span class="num">${fmt(i.booked)}</span></div>
-        <div><span class="n"><b>${i.diff>=0?'Nicht erfasst':'Mehr auf dem Konto als erwartet'}</b></span><span class="num"><b>${fmt(Math.abs(i.diff))}</b></span></div></div>`;
-      if(i.diff>=0.5)h+=`<div class="row" style="margin-top:8px"><button data-act="kasse-book" data-ym="${ym}">${fmt(i.diff)} als „nicht erfasst“ buchen</button></div>`;
-      else if(i.diff<=-0.5)h+=`<p class="small muted" style="margin:8px 0 0">Mögliche Gründe: eine Einnahme fehlt, ein Beleg ist doppelt oder eine Sparrate liegt noch auf dem Konto.</p>`;
+        <div><span class="n"><b>${ok?'Differenz':i.diff>0?'Nicht erfasst':'Mehr Geld da als erwartet'}</b></span><span class="num"><b>${ok?'0,00 €':fmt(Math.abs(i.diff))}</b></span></div></div>`;
+      if(ok)h+=`<div class="note" style="margin-top:10px"><b>Passt.</b> Konto${i.cash?', Bargeld':''} und App stimmen überein.</div>`;
+      else if(acc)h+=`<p class="small muted" style="margin:8px 0 0">Du hast die Differenz so übernommen. <button type="button" class="linkbtn" data-act="kasse-reopen" data-ym="${ym}">Nochmal prüfen</button></p>`;
+      else if(Math.abs(i.diff)>=tol)h+=kasseHelp(ym,i);
+      else h+=`<p class="small muted" style="margin:8px 0 0">Kleine Abweichung unter ${fmt(tol)}.</p>${i.diff>0?`<div class="row" style="margin-top:6px"><button data-act="kasse-book" data-ym="${ym}">${fmt(i.diff)} als „nicht erfasst“ buchen</button></div>`:''}`;
     }
-    h+=`<p class="small muted" style="margin:8px 0 0">Am besten am Monatsende eintragen. Die App rechnet so, als ob Sparraten und Rücklagen das Konto verlassen. Offene Rechnungen und aus Rücklagen bezahlte Belege zählen nicht mit.</p></div>`;
+    h+=`<p class="small muted" style="margin:10px 0 0">Am besten am Monatsende eintragen. Die App rechnet so, als ob Sparraten und Rücklagen das Konto verlassen. Offene Rechnungen und aus Rücklagen bezahlte Belege zählen nicht mit.</p></div>`;
   }
+  return h+`</div>`;
+}
+// Rückfragen bei einer Differenz: Woran könnte es liegen?
+function kasseHelp(ym,i){
+  const mo=MONTHS[+ym.slice(5)-1];let n=0;
+  let h=`<div class="kassehelp"><p class="kh-t">Woran könnte es liegen?</p>`;
+  const step=(t,body)=>`<div class="kh-s"><span class="kh-n">${++n}</span><div><p class="kh-q">${t}</p>${body}</div></div>`;
+  // 1. Bargeld
+  if(!i.cash&&!i.k.noCash)h+=step('Hast du Bargeld im Portemonnaie?',`<p class="small muted">Abgehobenes Geld sieht für das Konto wie ausgegeben aus. ${i.diff<0?'Und Bargeld vom Vormonat, das du jetzt ausgegeben hast, fehlt auf dem Konto nicht.':''}</p>
+    <div class="row"><button type="button" class="primary" data-act="kasse-cash" data-ym="${ym}">Ja, Bargeld eintragen</button><button type="button" data-act="kasse-nocash" data-ym="${ym}">Nein</button></div>`);
+  else if(i.cash)h+=step('Bargeld ist eingerechnet',`<p class="small muted">${i.cashD>0?`Dein Bargeld ist um ${fmt(i.cashD)} weniger geworden.`:i.cashD<0?`Du hast ${fmt(-i.cashD)} mehr Bargeld als Ende des Vormonats.`:'Dein Bargeld ist gleich geblieben.'} Stimmen die Beträge oben?</p>`);
+  if(i.diff>0){
+    // 2. Alles eingetragen?
+    const ed=emptyDays(ym,i.rs.filter(r=>!r.example));
+    const days=ed.length?(ed.length>12?`An ${ed.length} Tagen im ${mo} hast du nichts erfasst.`:`An diesen Tagen im ${mo} hast du nichts erfasst: ${ed.map(d=>d+'.').join(', ')}`):'';
+    const notDeb=i.irr.filter(f=>!i.deb.includes(f.id)&&f.kind!=='in');
+    h+=step('Hast du alles eingetragen?',`${days?`<p class="small">${days}</p>`:''}${notDeb.length?`<p class="small">Noch nicht als abgebucht angehakt: ${notDeb.map(f=>`${esc(f.name)} (${fmt(f.amount)})`).join(', ')}. Falls doch abgebucht, oben anhaken.</p>`:''}
+      <p class="small muted">Typisch vergessen: Bäcker, Kantine, Automaten, Spenden, Online-Käufe, Abos.</p>
+      <div class="row"><button type="button" data-act="photo">Beleg fotografieren</button><button type="button" data-act="kasse-quick">Schnelleingabe</button></div>`);
+  }else{
+    // 2. Zu viel erfasst?
+    const du=dupReceipts(i.rs);
+    h+=step('Ist etwas doppelt oder fehlt eine Einnahme?',`${du.length?`<p class="small"><b>Vielleicht doppelt:</b> ${du.map(r=>`${esc(r.merchant)} ${fmt(rTotal(r))} am ${fmtD(r.date)}`).join(', ')}. Du findest sie unten in der Liste und kannst sie dort löschen.</p>`:''}
+      <p class="small muted">Weitere Gründe: eine Einnahme fehlt (z. B. Erstattung, Rückzahlung), eine Rücklage oder Sparrate liegt noch auf dem Konto${i.cash?'':', oder du hast Bargeld vom Vormonat ausgegeben'}.</p>`);
+  }
+  // 3. Rest
+  h+=step('Und der Rest?',`<div class="row">${i.diff>0?`<button type="button" data-act="kasse-book" data-ym="${ym}">${fmt(i.diff)} als „nicht erfasst“ buchen</button>`:''}<button type="button" class="ghost" data-act="kasse-accept" data-ym="${ym}">So lassen</button></div>`);
   return h+`</div>`;
 }
 function receiptRow(r){
@@ -1743,7 +1789,8 @@ function vMehr(){
   h+=sec('budgets','Budgets',state.useBudgets?`an · ${nB} ${nB===1?'Budget':'Budgets'}`:'aus',()=>`<div class="box"><label class="check"><input id="use-budgets" type="checkbox"${state.useBudgets?' checked':''}> Monatsbudgets verwenden</label>
     ${state.useBudgets?`<p class="muted small" style="margin:0">Leer lassen = kein Budget. Ab 80 % warnt die App, über 100 % wird es rot.</p><div class="list">${state.categories.map(c=>`<div class="rule" style="grid-template-columns:minmax(0,1fr) 8em"><span><i class="dot" style="--c:${c.color}"></i> ${esc(c.name)}</span><input id="bud-${c.id}" data-budget="${c.id}" inputmode="decimal" value="${+state.budgets[c.id]>0?fmtIn(state.budgets[c.id]):''}" placeholder="–" aria-label="Budget ${esc(c.name)}"></div>`).join('')}</div>`:''}</div>`);
   h+=sec('kasse','Kassensturz',state.prefs.kasse?'an':'aus',()=>`<div class="box"><label class="check"><input id="use-kasse" type="checkbox"${state.prefs.kasse?' checked':''}> Kassensturz verwenden</label>
-    <p class="muted small" style="margin:0">Du trägst einmal im Monat deinen Kontostand ein. Die App vergleicht ihn mit Einnahmen und erfassten Ausgaben und zeigt, wie viel Geld du nicht erfasst hast. Die Eingabe erscheint dann im Reiter „Monat“.</p></div>`);
+    <p class="muted small" style="margin:0">Du trägst einmal im Monat deinen Kontostand ein. Die App vergleicht ihn mit Einnahmen und erfassten Ausgaben und zeigt, wie viel Geld du nicht erfasst hast. Die Eingabe erscheint dann im Reiter „Monat“.</p>
+    ${state.prefs.kasse?`<label class="f" for="kasse-tol" style="max-width:16em">Rückfragen ab einer Differenz von<input id="kasse-tol" inputmode="decimal" value="${fmtIn(kasseTol())}" style="font-family:var(--f-mono)"></label><p class="muted small" style="margin:0">Ab diesem Betrag fragt die App nach Bargeld und vergessenen Einträgen. Standard: 10,00 €.</p>`:''}</div>`);
   {const nP=state.goals.filter(g=>g.pot).length;
   h+=sec('pots','Rücklagen',state.prefs.pots?`an${nP?` · ${nP} ${nP===1?'Topf':'Töpfe'}`:''}`:(nP?`aus · ${nP} ${nP===1?'Topf':'Töpfe'} vorhanden`:'aus'),()=>`<div class="box"><label class="check"><input id="use-pots" type="checkbox"${state.prefs.pots?' checked':''}> Rücklagen verwenden</label>
     <p class="muted small" style="margin:0">Rücklagen sind Töpfe für Unregelmäßiges wie Autoreparatur, Geschenke oder Nachzahlungen. Jeden Monat fließt ein fester Betrag hinein und verringert dein „Übrig“. Einen Beleg kannst du dann „aus der Rücklage“ bezahlen, er belastet den Monat nicht. Du legst sie unter „Planen“ an.</p>
@@ -2200,6 +2247,11 @@ document.addEventListener('click',ev=>{
     case 'snap-no':ui.snapConfirm=null;render();break;
     case 'snap-yes':snapRestore(b.dataset.day);break;
     case 'rescue-no':ui.rescue=false;ui.rescueDone=true;loadBroken=false;render();break;
+    case 'kasse-cash':ui.kCash=true;render();setTimeout(()=>{const e=document.getElementById(document.getElementById('k-cprev')&&!document.getElementById('k-cprev').value?'k-cprev':'k-cash');if(e){e.scrollIntoView({block:'center'});e.focus()}},60);break;
+    case 'kasse-nocash':{const e=state.kasse[b.dataset.ym]=state.kasse[b.dataset.ym]||{};e.noCash=true;persist();render();break}
+    case 'kasse-accept':{const ym=b.dataset.ym,i=kasseInfo(ym);if(i.has){state.kasse[ym].accept=i.diff;persist()}render();break}
+    case 'kasse-reopen':{const e=state.kasse[b.dataset.ym];if(e)delete e.accept;persist();render();break}
+    case 'kasse-quick':ui.action='quick';if(location.hash!=='#monat')location.hash='monat';render();setTimeout(focusAction,60);break;
     case 'kasse-book':{const ym=b.dataset.ym,i=kasseInfo(ym);if(i.has&&i.diff>=0.5){
       state.receipts.push({id:uid(),date:ym===thisYM()?today():lastDay(ym),merchant:'Nicht erfasst',items:[{name:'Nicht erfasste Ausgaben (Kassensturz)',amount:i.diff,cat:'sonstiges'}]});
       persist();ui.flash=`${fmt(i.diff)} als „nicht erfasst“ gebucht.`}render();break}
@@ -2308,6 +2360,7 @@ document.addEventListener('change',ev=>{
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
   if(t.id==='use-budgets'){state.useBudgets=t.checked;persist();render();return}
   if(t.id==='use-kasse'){state.prefs.kasse=t.checked;persist();render();return}
+  if(t.id==='kasse-tol'){const v=t.value.trim()?toNum(t.value):10;if(!isNaN(v)&&v>=0){state.prefs.kasseTol=r2(v);persist()}t.value=fmtIn(kasseTol());return}
   if(t.id==='use-pots'){state.prefs.pots=t.checked;persist();render();return}
   if(t.id==='yr-sel'){ui.yr=+t.value;render();return}
   if(t.dataset.budget){const v=toNum(t.value);if(t.value.trim()&&!isNaN(v)&&v>0)state.budgets[t.dataset.budget]=r2(v);else delete state.budgets[t.dataset.budget];persist();t.value=state.budgets[t.dataset.budget]?fmtIn(state.budgets[t.dataset.budget]):'';return}
@@ -2370,6 +2423,10 @@ document.addEventListener('submit',ev=>{
     if((a&&isNaN(na))||(b2&&isNaN(nb))){ui.err='Kontostand bitte als Zahl angeben, z. B. 1.250,00.';render();return}
     const set=(m,v)=>{const e=state.kasse[m]=state.kasse[m]||{};if(v==null)delete e.bal;else e.bal=r2(v)};
     set(pm,na);set(ym,nb);
+    if(document.getElementById('k-cash')){const c1=val('k-cprev').trim(),c2=val('k-cash').trim(),nc1=c1?toNum(c1):null,nc2=c2?toNum(c2):null;
+      if((c1&&(isNaN(nc1)||nc1<0))||(c2&&(isNaN(nc2)||nc2<0))){ui.err='Bargeld bitte als Zahl angeben, z. B. 45,00.';render();return}
+      const cs=(m,v)=>{const e=state.kasse[m]=state.kasse[m]||{};if(v==null)delete e.cash;else{e.cash=r2(v);delete e.noCash}};
+      cs(pm,nc1);cs(ym,nc2);ui.kCash=false}
     state.kasse[ym].deb=[...f.querySelectorAll('[data-kdeb]')].filter(x=>x.checked).map(x=>x.dataset.kdeb);
     ui.err='';persist();render();return}
   if(f.id==='goal-form'){
