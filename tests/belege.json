@@ -1,0 +1,846 @@
+[
+ {
+  "name": "rewe-klassisch",
+  "text": "REWE Markt GmbH\nHauptstr. 12\n70173 Stuttgart\nUID Nr.: DE812706034\n                              EUR\nJA! VOLLMILCH 3,5%           1,09 B\nBIO BANANEN                  1,78 B\n  2 Stk x 0,89\nROGGENBROT 750G              1,79 B\nGOUDA JUNG SCHEIBEN          2,29 B\nPREISVORTEIL                -0,30 B\nBALEA SHAMPOO                0,95 A\nKUECHENROLLE 4ER             2,49 A\nCLUB MATE 0,5L               1,19 B\nPFAND 0,15 EUR               0,15 A\n--------------------------------------\nSUMME                 EUR   11,43\nGeg. Girocard         EUR   11,43\nSteuer  %    Netto   Steuer   Brutto\nA= 19,0%     3,02     0,57     3,59\nB=  7,0%     7,33     0,51     7,84\nDatum: 10.11.2026  Uhrzeit: 17:42",
+  "summe": 11.43,
+  "positionen": [
+   [
+    "JA! VOLLMILCH 3,5%",
+    1.09
+   ],
+   [
+    "BIO BANANEN",
+    1.78
+   ],
+   [
+    "ROGGENBROT 750G",
+    1.79
+   ],
+   [
+    "GOUDA JUNG SCHEIBEN",
+    1.99
+   ],
+   [
+    "BALEA SHAMPOO",
+    0.95
+   ],
+   [
+    "KUECHENROLLE 4ER",
+    2.49
+   ],
+   [
+    "CLUB MATE 0,5L",
+    1.19
+   ],
+   [
+    "PFAND",
+    0.15
+   ]
+  ]
+ },
+ {
+  "name": "aldi-menge-unten",
+  "text": "ALDI SÜD\nMusterstr. 5, 70372 Stuttgart\nBio Eier 10er\n  2 x      2,99           5,98 1\nHaferflocken zart         0,79 1\nSpülmittel Zitrone        0,95 2\nTomaten Rispe\n  0,642 kg x 2,99 EUR/kg  1,92 1\nMineralwasser 6x1,5L      2,34 1\nPfand                     1,50 2\nSumme                    13,48\nKartenzahlung            13,48\n10.11.2026 18:01",
+  "summe": 13.48,
+  "positionen": [
+   [
+    "Bio Eier 10er",
+    5.98
+   ],
+   [
+    "Haferflocken zart",
+    0.79
+   ],
+   [
+    "Spülmittel Zitrone",
+    0.95
+   ],
+   [
+    "Tomaten Rispe",
+    1.92
+   ],
+   [
+    "Mineralwasser 6x1,5L",
+    2.34
+   ],
+   [
+    "Pfand",
+    1.5
+   ]
+  ]
+ },
+ {
+  "name": "lidl-gewicht-rabatt",
+  "text": "LIDL\nButter 250g              2,19 A\nBananen                  1,29 A\n 0,812 kg x 1,59 EUR/kg\nErdbeeren 500g           2,99 A\nRabatt 30%              -0,90\nToilettenpapier 8x       3,45 B\nzu zahlen                9,02\nKarte                    9,02\n12.11.26 18:03",
+  "summe": 9.02,
+  "positionen": [
+   [
+    "Butter 250g",
+    2.19
+   ],
+   [
+    "Bananen",
+    1.29
+   ],
+   [
+    "Erdbeeren 500g",
+    2.09
+   ],
+   [
+    "Toilettenpapier 8x",
+    3.45
+   ]
+  ]
+ },
+ {
+  "name": "edeka-stk",
+  "text": "EDEKA Müller\nKönigstr. 3 70173 Stuttgart\nBrötchen Weizen          1,77 B\n   3 Stk x 0,59\nÄpfel Elstar             2,49 B\nFrischkäse natur         1,29 B\nZahnbürste mittel        1,99 A\nSUMME EUR                7,54\nBAR                     10,00\nRÜCKGELD                 2,46\n09.11.2026 08:15",
+  "summe": 7.54,
+  "positionen": [
+   [
+    "Brötchen Weizen",
+    1.77
+   ],
+   [
+    "Äpfel Elstar",
+    2.49
+   ],
+   [
+    "Frischkäse natur",
+    1.29
+   ],
+   [
+    "Zahnbürste mittel",
+    1.99
+   ]
+  ]
+ },
+ {
+  "name": "kaufland-stern",
+  "text": "Kaufland\nMilch 1,5% 1L            0,99 B\nJoghurt Natur 500g       1,98 B\n   2 * 0,99\nNudeln Fusilli           0,89 B\nBatterien AA 4er         3,99 A\nSumme                    7,85\nEC-Karte                 7,85\nDatum 08.11.2026",
+  "summe": 7.85,
+  "positionen": [
+   [
+    "Milch 1,5% 1L",
+    0.99
+   ],
+   [
+    "Joghurt Natur 500g",
+    1.98
+   ],
+   [
+    "Nudeln Fusilli",
+    0.89
+   ],
+   [
+    "Batterien AA 4er",
+    3.99
+   ]
+  ]
+ },
+ {
+  "name": "dm",
+  "text": "dm-drogerie markt\nStuttgart Königstr. 1\nBalea Duschgel        0,95 1\nElkos Zahnpasta       0,65 1\nalverde Shampoo       2,45 1\nSeeberger Nüsse       2,95 2\nSUMME EUR             7,00\ngirocard              7,00\nPAYBACK Punkte        3\nDatum 11.11.2026",
+  "summe": 7.0,
+  "positionen": [
+   [
+    "Balea Duschgel",
+    0.95
+   ],
+   [
+    "Elkos Zahnpasta",
+    0.65
+   ],
+   [
+    "alverde Shampoo",
+    2.45
+   ],
+   [
+    "Seeberger Nüsse",
+    2.95
+   ]
+  ]
+ },
+ {
+  "name": "tankstelle",
+  "text": "Shell Station Stuttgart\nBeleg-Nr. 4711\nSuper E10\n  45,32 l x 1,759 EUR/l      79,72 A\nScheibenreiniger 1L           4,99 A\nGesamtbetrag EUR             84,71\ngirocard                     84,71\n10.11.2026 07:55",
+  "summe": 84.71,
+  "positionen": [
+   [
+    "Super E10",
+    79.72
+   ],
+   [
+    "Scheibenreiniger 1L",
+    4.99
+   ]
+  ]
+ },
+ {
+  "name": "restaurant-trinkgeld",
+  "text": "Pizzeria Da Mario\nTisch 12\n2x Pizza Margherita     19,00\n1x Cola 0,4l             3,90\n1x Tiramisu              5,50\nSumme                   28,40\nTrinkgeld                2,60\nGesamt                  31,00\nBar                     40,00\nRückgeld                 9,00\nMwSt 19%                 4,53\nVielen Dank für Ihren Besuch",
+  "summe": 31.0,
+  "positionen": [
+   [
+    "Pizza Margherita",
+    19.0
+   ],
+   [
+    "Cola 0,4l",
+    3.9
+   ],
+   [
+    "Tiramisu",
+    5.5
+   ],
+   [
+    "Trinkgeld",
+    2.6
+   ]
+  ]
+ },
+ {
+  "name": "baeckerei-menge-vorn",
+  "text": "Bäckerei Schmidt\n3 Brezel                 2,70\n1 Dinkelbrot 750g        4,20\n2 Butterhörnchen         3,00\nTotal                    9,90\nGegeben                 10,00\nZurück                   0,10",
+  "summe": 9.9,
+  "positionen": [
+   [
+    "Brezel",
+    2.7
+   ],
+   [
+    "Dinkelbrot 750g",
+    4.2
+   ],
+   [
+    "Butterhörnchen",
+    3.0
+   ]
+  ]
+ },
+ {
+  "name": "baumarkt-artnr",
+  "text": "OBI Markt Stuttgart\n4006825123456 Spanplattenschrauben 4x40    3,99\n   2 ST x 3,99                             7,98\n4003318555123 Dübel 6mm 100 Stk            2,49\n4011905000123 Malerkrepp 50m               4,29\nSumme                                     14,76\nKarte                                     14,76\n07.11.2026",
+  "summe": 14.76,
+  "positionen": [
+   [
+    "Spanplattenschrauben 4x40",
+    7.98
+   ],
+   [
+    "Dübel 6mm",
+    2.49
+   ],
+   [
+    "Malerkrepp 50m",
+    4.29
+   ]
+  ]
+ },
+ {
+  "name": "bestellbestaetigung",
+  "text": "Bestellübersicht\nBestellnummer 302-1234567-1234567\nBestellt am 09.11.2026\nUSB-C Kabel 2m geflochten\nMenge: 1\n12,99 €\nSchutzhülle klar für Pixel 8\nMenge: 2\n15,98 €\nZwischensumme: 28,97 €\nVersand: 0,00 €\nGesamtsumme: 28,97 €",
+  "summe": 28.97,
+  "positionen": [
+   [
+    "USB-C Kabel 2m geflochten",
+    12.99
+   ],
+   [
+    "Schutzhülle klar für Pixel 8",
+    15.98
+   ]
+  ]
+ },
+ {
+  "name": "storno",
+  "text": "REWE City\nMILCH 1,5%               1,09 B\nBUTTER                   2,19 B\nSTORNO BUTTER           -2,19 B\nMARGARINE                1,29 B\nSUMME                    2,38\nEC-Cash                  2,38",
+  "summe": 2.38,
+  "positionen": [
+   [
+    "MILCH 1,5%",
+    1.09
+   ],
+   [
+    "MARGARINE",
+    1.29
+   ]
+  ]
+ },
+ {
+  "name": "gutschein-zwei-zahlarten",
+  "text": "Thalia Buchhandlung\nDer Hobbit Taschenbuch      12,00\nLesezeichen Leder            4,95\nNotizbuch A5                 8,45\nSumme                       25,40\nGeschenkkarte               10,00\ngirocard                    15,40\nenthaltene MwSt 7%           0,79\nenthaltene MwSt 19%          2,14",
+  "summe": 25.4,
+  "positionen": [
+   [
+    "Der Hobbit Taschenbuch",
+    12.0
+   ],
+   [
+    "Lesezeichen Leder",
+    4.95
+   ],
+   [
+    "Notizbuch A5",
+    8.45
+   ]
+  ]
+ },
+ {
+  "name": "zweizeiliger-name",
+  "text": "Alnatura Super Natur Markt\nBio Vollkorn Spaghetti\n500g Packung                 1,49 B\nBio Tomatensauce Basilikum\n340ml Glas                   2,29 B\nHafer Drink 1L               1,29 B\nSumme                        5,07\nKartenzahlung                5,07",
+  "summe": 5.07,
+  "positionen": [
+   [
+    "Bio Vollkorn Spaghetti 500g Packung",
+    1.49
+   ],
+   [
+    "Bio Tomatensauce Basilikum 340ml Glas",
+    2.29
+   ],
+   [
+    "Hafer Drink 1L",
+    1.29
+   ]
+  ]
+ },
+ {
+  "name": "eur-vor-preis",
+  "text": "Tchibo Filiale\nKaffee Crema Bohnen 1kg   EUR 12,99\nFiltertüten Gr. 4         EUR  1,49\nGesamt                    EUR 14,48\nVisa                      EUR 14,48",
+  "summe": 14.48,
+  "positionen": [
+   [
+    "Kaffee Crema Bohnen 1kg",
+    12.99
+   ],
+   [
+    "Filtertüten Gr. 4",
+    1.49
+   ]
+  ]
+ },
+ {
+  "name": "punkt-dezimal",
+  "text": "Order confirmation\nWireless Mouse M185\nEUR 14.99\nMousepad XL\nEUR 9.49\nShipping 0.00\nOrder total: EUR 24.48",
+  "summe": 24.48,
+  "positionen": [
+   [
+    "Wireless Mouse M185",
+    14.99
+   ],
+   [
+    "Mousepad XL",
+    9.49
+   ]
+  ]
+ },
+ {
+  "name": "apotheke",
+  "text": "Stadt-Apotheke\nIbuprofen 400 akut N2        5,97\nPZN 01234567\nNasenspray sanft             3,49\nZuzahlung Rezept             5,00\nGesamtbetrag                14,46\nEC-Karte                    14,46\n12.11.2026",
+  "summe": 14.46,
+  "positionen": [
+   [
+    "Ibuprofen 400 akut N2",
+    5.97
+   ],
+   [
+    "Nasenspray sanft",
+    3.49
+   ],
+   [
+    "Zuzahlung Rezept",
+    5.0
+   ]
+  ]
+ },
+ {
+  "name": "name-unten-schreibwaren",
+  "text": "SCHREIBfant\nKassen-Beleg\nDatum 12.11.2026 Zeit 10:00\nBonNr. 000000001234 Kasse 1/7\nArtikelnr. Menge Einzel per USt. Gesamt\nBezeichnung €\n396102084 1 4,59 1 19 4,59\nIdena Würfel 16mm 6er weiss\n8002314 1 3,29 1 19 3,29\nGummiringe No 6 25gr\n500 1 4,00 1 0 4,00\nEinnahme Lose\ngesamt: 11,88\nper EC-CASH MIT PIN: 11,88\nUSt.-Satz Umsatz USt. Netto\n0,00% 4,00 0,00 4,00\n19,00% 7,88 1,26 6,62\nSumme 11,88 1,26 10,62",
+  "summe": 11.88,
+  "positionen": [
+   [
+    "Idena Würfel 16mm 6er weiss",
+    4.59
+   ],
+   [
+    "Gummiringe No 6 25gr",
+    3.29
+   ],
+   [
+    "Einnahme Lose",
+    4.0
+   ]
+  ]
+ },
+ {
+  "name": "tabelle-lieferservice",
+  "text": "Rechnung\nProdukt Menge MwSt. Einzelpreis Gesamt\nREWE Bio Pflanzlich Hafer Drink 1l 1 A 0,90 € 0,90 €\nREWE Beste Wahl Himbeeren 500g 2 B 4,99 € 9,98 €\nREWE Beste Wahl Veganes Hack 270g 2 B 2,39 € 4,78 €\nPfandtasche* 7 A 0,50 € 3,50 €\nPfandtasche* -5 A 0,50 € -2,50 €\nLiefergebühr 1 A/B 0,00 € 0,00 €\nGesamtsumme 16,66 €\nZahlungsbetrag 16,66 €",
+  "summe": 16.66,
+  "positionen": [
+   [
+    "REWE Bio Pflanzlich Hafer Drink 1l",
+    0.9
+   ],
+   [
+    "REWE Beste Wahl Himbeeren 500g",
+    9.98
+   ],
+   [
+    "REWE Beste Wahl Veganes Hack 270g",
+    4.78
+   ],
+   [
+    "Pfandtasche",
+    1.0
+   ]
+  ]
+ },
+ {
+  "name": "friseur",
+  "text": "Salon Haarscharf\nRechnung Nr. 2026-0815\nHerrenhaarschnitt            28,00\nBartpflege                   12,00\nGesamtbetrag                 40,00\ninkl. 19% MwSt                6,39\nbezahlt mit Karte\n11.11.2026",
+  "summe": 40.0,
+  "positionen": [
+   [
+    "Herrenhaarschnitt",
+    28.0
+   ],
+   [
+    "Bartpflege",
+    12.0
+   ]
+  ]
+ },
+ {
+  "name": "leergut",
+  "text": "Getränke Hoffmann\nSprudel Kiste 12x0,7         5,99 A\nPfand Kiste                  3,30 A\nLeergut                     -3,30 A\nApfelschorle 6x1L            4,49 A\nPfand                        1,50 A\nSumme                       11,98\nBar                         11,98",
+  "summe": 11.98,
+  "positionen": [
+   [
+    "Sprudel Kiste 12x0,7",
+    5.99
+   ],
+   [
+    "Apfelschorle 6x1L",
+    4.49
+   ],
+   [
+    "Pfand",
+    1.5
+   ]
+  ]
+ },
+ {
+  "name": "rossmann-coupon",
+  "text": "ROSSMANN\nDrogeriemarkt\nIsana Duschgel           0,89 A\nAlterra Creme            2,99 A\nCoupon 10%              -0,39\nenerBiO Müsli            2,49 B\nZwischensumme            5,98\nSumme                    5,98\ngirocard                 5,98",
+  "summe": 5.98,
+  "positionen": [
+   [
+    "Isana Duschgel",
+    0.89
+   ],
+   [
+    "Alterra Creme",
+    2.6
+   ],
+   [
+    "enerBiO Müsli",
+    2.49
+   ]
+  ]
+ },
+ {
+  "name": "parkhaus",
+  "text": "APCOA Parkhaus Hbf\nParkzeit 2:14 Std\nParkgebühr                   6,50 EUR\nBetrag                       6,50 EUR\ninkl. MwSt 19%               1,04 EUR\ngirocard kontaktlos\n10.11.2026 14:22",
+  "summe": 6.5,
+  "positionen": [
+   [
+    "Parkgebühr",
+    6.5
+   ]
+  ]
+ },
+ {
+  "name": "netto-rechnung",
+  "text": "Elektro Maier GmbH\nRechnung Nr. 2026-311\nRechnungsdatum: 03.11.2026\nPos Bezeichnung Menge Einzelpreis Gesamt\n1 Arbeitszeit Monteur 2,5 Std 58,00 145,00\n2 Steckdose UP weiß 3 Stk 6,90 20,70\n3 Anfahrtspauschale 1 35,00 35,00\nNettobetrag 200,70\nzzgl. 19% MwSt 38,13\nRechnungsbetrag 238,83\nZahlbar bis 17.11.2026",
+  "summe": 238.83,
+  "positionen": [
+   [
+    "Arbeitszeit Monteur",
+    172.55
+   ],
+   [
+    "Steckdose UP weiß",
+    24.63
+   ],
+   [
+    "Anfahrtspauschale",
+    41.65
+   ]
+  ]
+ },
+ {
+  "name": "kaufland-menge-unten",
+  "text": "Kaufland\nMusterstr. 1\nMilch 3,5%\n  2 * 1,09                2,18 B\nButter                    2,19 B\nTomaten lose\n  0,512 kg * 2,99 EUR/kg  1,53 B\nSumme                     5,90\nBar                      10,00\nRückgeld                  4,10\n12.11.2026 10:15",
+  "summe": 5.9,
+  "positionen": [
+   [
+    "Milch",
+    2.18
+   ],
+   [
+    "Butter",
+    2.19
+   ],
+   [
+    "Tomaten",
+    1.53
+   ]
+  ]
+ },
+ {
+  "name": "lidl-menge-unten",
+  "text": "LIDL\nBananen               1,78 A\n   2 x 0,89\nJoghurt               0,59 A\nPfand                 0,25 B\nLeergut              -0,50\nzu zahlen             2,12\nKartenzahlung         2,12\n12.11.26",
+  "summe": 2.12,
+  "positionen": [
+   [
+    "Bananen",
+    1.78
+   ],
+   [
+    "Joghurt",
+    0.59
+   ],
+   [
+    "Pfand",
+    -0.25
+   ]
+  ]
+ },
+ {
+  "name": "restaurant",
+  "text": "Ristorante Roma\nTisch 12\n2x Pizza Margherita      19,00\n1x Cola 0,4l              3,90\n1 Tiramisu                5,50\nZwischensumme            28,40\nSumme                    28,40\nGegeben                  30,00\nZurück                    1,60\nEs bediente Sie: Anna",
+  "summe": 28.4,
+  "positionen": [
+   [
+    "Pizza Margherita",
+    19.0
+   ],
+   [
+    "Cola",
+    3.9
+   ],
+   [
+    "Tiramisu",
+    5.5
+   ]
+  ]
+ },
+ {
+  "name": "spalten-einzel-gesamt",
+  "text": "Getränkemarkt Müller\nArtikel          Menge  Preis  Betrag\nMineralwasser      2    4,99    9,98\nApfelschorle       1    6,49    6,49\nPfand Kiste        3    3,30    9,90\nGesamtbetrag                   26,37\nEC-Karte                       26,37",
+  "summe": 26.37,
+  "positionen": [
+   [
+    "Mineralwasser",
+    9.98
+   ],
+   [
+    "Apfelschorle",
+    6.49
+   ],
+   [
+    "Pfand Kiste",
+    9.9
+   ]
+  ]
+ },
+ {
+  "name": "name-zweizeilig",
+  "text": "Bauhaus\n4006381333931\nSpax Schrauben 4x40 Senkkopf\nverzinkt 200 Stk               7,95 A\nHolzleim wasserfest            5,49 A\nSUMME EUR                     13,44\ngirocard                      13,44",
+  "summe": 13.44,
+  "positionen": [
+   [
+    "Spax",
+    7.95
+   ],
+   [
+    "Holzleim",
+    5.49
+   ]
+  ]
+ },
+ {
+  "name": "mehrere-zahlungen",
+  "text": "ROSSMANN\nZahnbürste               2,49 A\nDuschgel                 1,29 A\nSumme                    3,78\nGutschein               -2,00\nKartenzahlung            1,78",
+  "summe": 3.78,
+  "positionen": [
+   [
+    "Zahnbürste",
+    2.49
+   ],
+   [
+    "Duschgel",
+    1.29
+   ]
+  ]
+ },
+ {
+  "name": "storno",
+  "text": "EDEKA\nVollmilch                1,19 B\nKäse Gouda               2,49 B\nStorno Käse Gouda       -2,49 B\nBrot                     1,99 B\nSUMME                    3,18\nBar                      5,00\nRückgeld                 1,82",
+  "summe": 3.18,
+  "positionen": [
+   [
+    "Vollmilch",
+    1.19
+   ],
+   [
+    "Brot",
+    1.99
+   ]
+  ]
+ },
+ {
+  "name": "tank",
+  "text": "Shell Station\nSäule 4\nSuper E10\n  45,32 l x 1,739 EUR/l       78,81 A\nGesamtbetrag                  78,81\ngirocard                      78,81",
+  "summe": 78.81,
+  "positionen": [
+   [
+    "",
+    78.81
+   ]
+  ]
+ },
+ {
+  "name": "ocr-verwechslung",
+  "text": "EDEKA\nVollmilch                l,19 B\nButter                   2,l9 B\nBrot                     1, 99 B\nÄpfel                    2 ,49 B\nEier                     O,99 B\nKäse                     3,S9 B\nSUMME                    12,44",
+  "summe": 12.44,
+  "positionen": [
+   [
+    "Vollmilch",
+    1.19
+   ],
+   [
+    "Butter",
+    2.19
+   ],
+   [
+    "Brot",
+    1.99
+   ],
+   [
+    "Äpfel",
+    2.49
+   ],
+   [
+    "Eier",
+    0.99
+   ],
+   [
+    "Käse",
+    3.59
+   ]
+  ]
+ },
+ {
+  "name": "euro-zeichen-fehler",
+  "text": "Bäckerei Schmidt\nBrezel                   0,95 E\nLaugenstange             1,10 €\nKaffee                   2,80 C\nSumme                    4,85 €",
+  "summe": 4.85,
+  "positionen": [
+   [
+    "Brezel",
+    0.95
+   ],
+   [
+    "Laugenstange",
+    1.1
+   ],
+   [
+    "Kaffee",
+    2.8
+   ]
+  ]
+ },
+ {
+  "name": "rabatt-prozent",
+  "text": "dm-drogerie markt\nBalea Shampoo            1,45 1\nZahnpasta                0,95 1\n20% Rabatt              -0,29\nWindeln                  7,95 1\nSUMME EUR               10,06",
+  "summe": 10.06,
+  "positionen": [
+   [
+    "Shampoo",
+    1.45
+   ],
+   [
+    "Zahnpasta",
+    0.66
+   ],
+   [
+    "Windeln",
+    7.95
+   ]
+  ]
+ },
+ {
+  "name": "apotheke",
+  "text": "Stern-Apotheke\nIbuprofen 400 20 St           4,97\nZuzahlung Rezept              5,00\nNasenspray                    3,49\nGesamt                       13,46\nEC-Cash                      13,46",
+  "summe": 13.46,
+  "positionen": [
+   [
+    "Ibuprofen",
+    4.97
+   ],
+   [
+    "Zuzahlung",
+    5.0
+   ],
+   [
+    "Nasenspray",
+    3.49
+   ]
+  ]
+ },
+ {
+  "name": "menge-vorn",
+  "text": "Getränke Hoffmann\n2 Kiste Wasser               9,98\n1 Kiste Bier                14,99\n3 Pfand                      9,90\nSumme                       34,87",
+  "summe": 34.87,
+  "positionen": [
+   [
+    "Kiste Wasser",
+    9.98
+   ],
+   [
+    "Kiste Bier",
+    14.99
+   ],
+   [
+    "Pfand",
+    9.9
+   ]
+  ]
+ },
+ {
+  "name": "aldi-posten",
+  "text": "ALDI SÜD\nMilch 1,5%               0,99 B\nH-Sahne                  0,69 B\nToast                    1,19 B\nSumme                    2,87\nPosten: 3\ngirocard                 2,87",
+  "summe": 2.87,
+  "positionen": [
+   [
+    "Milch",
+    0.99
+   ],
+   [
+    "Sahne",
+    0.69
+   ],
+   [
+    "Toast",
+    1.19
+   ]
+  ]
+ },
+ {
+  "name": "stueck-x-preis-zeile",
+  "text": "REWE\nJoghurt Natur\n 3 Stk x 0,49                1,47 B\nGurke                        0,79 B\nSUMME EUR                    2,26",
+  "summe": 2.26,
+  "positionen": [
+   [
+    "Joghurt",
+    1.47
+   ],
+   [
+    "Gurke",
+    0.79
+   ]
+  ]
+ },
+ {
+  "name": "bestellbestaetigung",
+  "text": "Deine Bestellung\nBestellnummer 123-456\nLieferung bis 15.11.2026\nSony Kopfhörer WH-CH520\nFarbe: Schwarz\nMenge: 1\n39,99 €\nUSB-C Kabel 2m\nMenge: 2\n11,98 €\nZwischensumme 51,97 €\nVersand 0,00 €\nGesamtsumme 51,97 €",
+  "summe": 51.97,
+  "positionen": [
+   [
+    "Kopfhörer",
+    39.99
+   ],
+   [
+    "Kabel",
+    11.98
+   ]
+  ]
+ },
+ {
+  "name": "gewicht-vor-name",
+  "text": "Wochenmarkt Stand 7\n0,750 kg Äpfel Elstar        2,25\n0,300 kg Champignons         1,80\n1 Bund Petersilie            1,00\nSumme                        5,05",
+  "summe": 5.05,
+  "positionen": [
+   [
+    "Äpfel",
+    2.25
+   ],
+   [
+    "Champignons",
+    1.8
+   ],
+   [
+    "Petersilie",
+    1.0
+   ]
+  ]
+ },
+ {
+  "name": "mwst-kennzeichen-zahl",
+  "text": "Kaufland\nReis Basmati             1,99 1\nSpülmittel               0,95 2\nSchokolade               0,89 1\nSumme                    3,83\n1  7,00%  2,69  0,19  2,88\n2 19,00%  0,80  0,15  0,95",
+  "summe": 3.83,
+  "positionen": [
+   [
+    "Reis",
+    1.99
+   ],
+   [
+    "Spülmittel",
+    0.95
+   ],
+   [
+    "Schokolade",
+    0.89
+   ]
+  ]
+ },
+ {
+  "name": "trinkgeld",
+  "text": "Café Central\nCappuccino               3,60\nKäsekuchen               4,20\nSumme                    7,80\nTrinkgeld                1,20\nGesamt                   9,00\nKartenzahlung            9,00",
+  "summe": 9.0,
+  "positionen": [
+   [
+    "Cappuccino",
+    3.6
+   ],
+   [
+    "Käsekuchen",
+    4.2
+   ],
+   [
+    "Trinkgeld",
+    1.2
+   ]
+  ]
+ },
+ {
+  "name": "preis-links",
+  "text": "Kiosk am Eck\n1,50  Zeitung\n2,80  Kaffee to go\n0,90  Kaugummi\nSumme 5,20",
+  "summe": 5.2,
+  "positionen": [
+   [
+    "Zeitung",
+    1.5
+   ],
+   [
+    "Kaffee",
+    2.8
+   ],
+   [
+    "Kaugummi",
+    0.9
+   ]
+  ]
+ }
+]

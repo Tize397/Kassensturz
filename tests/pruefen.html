@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'">
+<title>Kassensturz – Belegerkennung prüfen</title>
+<style>
+:root{--bg:#eef1f6;--fg:#171c28;--mut:#586174;--ok:#1d7a46;--bad:#b3261e;--line:#d6dce6;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1219;--fg:#e7eaf2;--mut:#9aa3b6;--ok:#5cc98a;--bad:#ff8a80;--line:#2a3142;--card:#181c26}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+h1{font-size:1.2rem;margin:0 0 4px}p{margin:0 0 12px;color:var(--mut)}
+.sum{font-weight:700;font-size:1.05rem;margin:12px 0}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0}
+.c b.ok{color:var(--ok)}.c b.bad{color:var(--bad)}.c small{display:block;color:var(--mut);white-space:pre-wrap}
+</style></head><body>
+<h1>Belegerkennung prüfen</h1>
+<p>Diese Seite liest nachgebaute Beispiel-Bons mit der aktuellen Erkennung aus und vergleicht das Ergebnis mit dem richtigen. Sie enthält keine echten Daten und ändert nichts an deinen Daten.</p>
+<div id="out">Prüfe …</div>
+<script src="../daten.js"></script>
+<script src="../erkennung.js"></script>
+<script>
+(async()=>{
+  const out=document.getElementById('out');
+  try{
+    const cases=await (await fetch('belege.json',{cache:'no-store'})).json();
+    const sim=(a,b)=>{a=a.toLowerCase();b=b.toLowerCase();return a.includes(b)||b.includes(a)};
+    let good=0,posOk=0,posAll=0,html='';
+    for(const c of cases){
+      const p=parseReceipt(c.text),left=p.items.slice(),miss=[];
+      for(const [n,a] of c.positionen){posAll++;const i=left.findIndex(x=>Math.abs(x.amount-a)<0.006&&sim(x.name,n));if(i>=0){left.splice(i,1);posOk++}else miss.push(n+' '+a.toFixed(2))}
+      const totOk=p.total!=null&&Math.abs(p.total-c.summe)<0.006,ok=totOk&&!miss.length&&!left.length;if(ok)good++;
+      html+=`<div class="c"><b class="${ok?'ok':'bad'}">${ok?'✓':'✗'}</b> ${c.name}${ok?'':`<small>Summe: ${p.total} (richtig ${c.summe})${miss.length?'\nFehlt: '+miss.join(', '):''}${left.length?'\nZu viel: '+left.map(x=>x.name+' '+x.amount).join(', '):''}</small>`}</div>`;
+    }
+    out.innerHTML=`<div class="sum">${good} von ${cases.length} Belegen komplett richtig · ${posOk} von ${posAll} Positionen</div>`+html;
+  }catch(e){out.textContent='Prüfung ging nicht: '+e.message}
+})();
+</script></body></html>

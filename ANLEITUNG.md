@@ -13,7 +13,7 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 1. Oben rechts auf „+“ → „New repository“.
 2. Name: `kassensturz`, Sichtbarkeit „Public“, dann „Create repository“.
 3. Auf „uploading an existing file“ klicken.
-4. Alle Dateien aus diesem ZIP hineinziehen (index.html, app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
+4. Alle Dateien und den Ordner `tests` aus diesem ZIP hineinziehen (index.html, die vier Programmdateien daten.js, erkennung.js, ansichten.js und app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
 5. Unten auf „Commit changes“.
 
 ## 3. Als Webseite freischalten
@@ -38,14 +38,21 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 ## Tipps
 - Bon-Foto direkt teilen: In der Galerie auf „Teilen“ → „Kassensturz“. Du kannst auch mehrere Fotos oder PDFs auf einmal markieren, die App geht sie dann nacheinander durch. Sind es Seiten einer einzigen Rechnung (z. B. mehrere Screenshots), wähle „Seiten einer Rechnung zusammenfügen“. Noch besser: Online-Rechnungen als PDF teilen, die liest die App ohne Lesefehler. Hat eine Rechnung einen GiroCode (QR-Code zum Überweisen) oder ein Kassenbon einen QR-Code, liest die App Betrag (und beim Bon Datum und Zahlungsart) direkt daraus. Achte darauf, dass der Code mit aufs Foto kommt.
 - Die Fotoerkennung lädt beim ersten Mal einmalig deutsche Sprachdaten (Internet nötig).
-- Unter „Mehr“ regelmäßig „Backup herunterladen“ und die Datei z. B. in Google Drive legen.
-- Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
+- Unter „Mehr → Backup & Export“ regelmäßig „Backup teilen“ und z. B. Google Drive wählen. Die App erinnert dich, wenn das letzte Backup älter als einen Monat ist.
+- Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Eine alte Datei `icon-text-192.png` kannst du bei GitHub löschen, sie wird nicht mehr gebraucht. Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
+
+## Neu in 2.9
+- **Sparziele & Rücklagen** sind ein Bereich unter „Planen“. Beim Anlegen wählst du, was es sein soll. Der Schalter für Rücklagen unter „Mehr“ entfällt.
+- **„Mehr“ aufgeräumt:** „Kategorien & Gelerntes“ und „Backup & Export“ fassen je zwei Bereiche zusammen.
+- **Hinweise im Monat:** Sind es mehrere, stehen sie gebündelt in einer Zeile. Dringende (rot) bleiben sichtbar.
+- **Wiederkehrende Ausgaben:** Kommt derselbe Betrag beim selben Händler drei Monate in Folge, schlägt die App vor, ihn als Fixkosten zu übernehmen.
+- **Speicher:** Deine Daten liegen jetzt in der Datenbank des Browsers, zusätzlich als zweite Kopie im bisherigen Speicher. Beide gehören nur zu deiner App, der Schutz ist derselbe wie vorher. Beim ersten Start von 2.9 werden deine Daten automatisch übernommen.
+- **Tests:** Unter `…/kassensturz/tests/pruefen.html` siehst du, ob die Belegerkennung alle Beispiel-Bons richtig liest. Die Seite enthält nur erfundene Bons.
 
 ## Neu in 2.8
 - **Bon-Fotos:** Die App dreht schiefe oder quer aufgenommene Bons selbst gerade. Liegt sie einmal falsch, hilft „Drehen und neu lesen“ über dem Händler-Feld. Gelb markierte Beträge bitte mit dem Bon vergleichen.
-- **Sicherheitskopie:** Unter „Mehr → Backup & Daten“ liegen automatisch die letzten drei Stände. Das hilft bei Fehlern, ersetzt aber kein Backup: Geht das Handy verloren, sind auch die Kopien weg.
+- **Sicherheitskopie:** Unter „Mehr → Backup & Export“ liegen automatisch die letzten drei Stände. Das hilft bei Fehlern, ersetzt aber kein Backup: Geht das Handy verloren, sind auch die Kopien weg.
 - **Kassensturz:** Unter „Mehr“ einschalten. Dann im Reiter „Monat“ den Kontostand vom Monatsende eintragen. Die App zeigt, wie viel Geld du nicht erfasst hast. Bei einer Differenz fragt sie nach Bargeld im Portemonnaie und vergessenen Einträgen. Ab welchem Betrag sie nachfragt, stellst du unter „Mehr → Kassensturz“ ein.
-- **Rücklagen:** Unter „Mehr“ einschalten, dann unter „Planen“ Töpfe anlegen. Beim Beleg wählst du „Bezahlt aus“ und die Rücklage.
 - **Jahresrückblick:** Im Reiter „Verlauf“ ganz oben unter dem Diagramm.
 
 ## Sicherheit
