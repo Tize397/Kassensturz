@@ -41,6 +41,10 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 - Unter „Mehr → Backup & Export“ regelmäßig „Backup teilen“ und z. B. Google Drive wählen. Die App erinnert dich, wenn das letzte Backup älter als einen Monat ist.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Eine alte Datei `icon-text-192.png` kannst du bei GitHub löschen, sie wird nicht mehr gebraucht. Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
 
+## Neu in 2.10
+- **Lernen aus Korrekturen:** Verbesserst du beim Prüfen eines Belegs einen verlesenen Namen, setzt die App ihn beim selben Händler künftig selbst ein. Löschst du eine Störzeile, lässt sie die beim nächsten Mal weg. Steht bei einem Händler der Name unter dem Preis, merkt sie sich das. Alles einsehbar und löschbar unter „Mehr → Kategorien & Gelerntes → Lesekorrekturen“.
+- **Entwickler-Werkzeuge** (nur für dich, ab Werk aus): Unter „Mehr → Entwickler-Werkzeuge“ einschalten. Dann erscheint beim Prüfen eines Belegs „Bericht speichern“. Erst korrigieren, dann speichern. Gesammelte Berichte teilst du dort gesammelt, z. B. an Claude. Sie enthalten den kompletten Belegtext, auf Wunsch auch das Foto.
+
 ## Neu in 2.9
 - **Sparziele & Rücklagen** sind ein Bereich unter „Planen“. Beim Anlegen wählst du, was es sein soll. Der Schalter für Rücklagen unter „Mehr“ entfällt.
 - **„Mehr“ aufgeräumt:** „Kategorien & Gelerntes“ und „Backup & Export“ fassen je zwei Bereiche zusammen.

@@ -47,6 +47,16 @@ function updateSums(){
   const df=document.getElementById('diff');if(df)df.textContent=diffText(d.total,sum);
 }
 
+// Korrekturen merken: geänderte Namen (Lesefehler), gelöschte Störzeilen, Bauart des Bons
+function learnFromDraft(d,items,mk){
+  const F=state.rules.fix[mk]=state.rules.fix[mk]||{},D=state.rules.drop[mk]=state.rules.drop[mk]||{};
+  d.items.forEach((it,i)=>{const ok=normKey(it.o||''),nk=normKey(items[i]?items[i].name:'');
+    if(ok.length>=3&&nk.length>=3&&ok!==nk&&!/^(ARTIKEL|OHNE BEZEICHNUNG)$/.test(ok))F[ok]=items[i].name});
+  // Gelöschte Zeile nur als Störzeile merken, wenn sie kein bekanntes Produkt ist und nicht noch einmal im Beleg steht
+  (d.removed||[]).forEach(o=>{const k=normKey(o);if(k.length<3||state.rules.products[k]||F[k]||items.some(x=>normKey(x.name)===k)||d.items.some(x=>normKey(x.o||'')===k))return;D[k]=true});
+  if(d.below)state.rules.layout[mk]={below:true};
+  if(!Object.keys(F).length)delete state.rules.fix[mk];if(!Object.keys(D).length)delete state.rules.drop[mk];
+}
 function saveDraft(){
   const d=ui.draft;
   const items=d.items.map(i=>{const o={name:i.name.trim()||'Ohne Bezeichnung',amount:toNum(i.amount),cat:i.cat};if(i.tax)o.tax=i.tax;return o});
@@ -71,6 +81,7 @@ function saveDraft(){
   if(mk&&!d.refund){const counts={};items.forEach(i=>counts[i.cat]=(counts[i.cat]||0)+Math.abs(i.amount));
     const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
     state.rules.merchants[mk]={cat:d.always?items[0].cat:top,always:!!d.always}}
+  if(d.orig&&mk&&!d.id)learnFromDraft(d,items,mk);
   const rec={id:d.id||uid(),date:d.date,merchant:d.merchant.trim(),items:recItems};
   if(d.refund)rec.refund=true;if(d.refOf)rec.refOf=d.refOf;if(d.pay)rec.pay=d.pay;if(d.pot&&!d.refund&&state.goals.some(g=>g.pot&&g.id===d.pot))rec.pot=d.pot;
   if(!d.refund&&d.open){rec.open=true;rec.due=d.due||''}
@@ -212,7 +223,7 @@ document.addEventListener('click',ev=>{
     case 'parse':{ui.paste=(document.getElementById('bon-text')||{}).value||'';parseNow();break}
     case 'manual':ui.draft={id:null,refund:false,merchant:'',date:today(),total:null,always:false,items:[{name:'',amount:'',cat:'',src:'',flag:true}]};ui.err='';ui.dup=null;ui.dupOk=false;render();break;
     case 'add-row':if(ui.draft)ui.draft.fix=null;d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();{const n=document.getElementById('n-'+(d.items.length-1));if(n)n.focus()}break;
-    case 'del-row':if(ui.draft)ui.draft.fix=null;d.items.splice(i,1);if(!d.items.length)d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();break;
+    case 'del-row':if(ui.draft)ui.draft.fix=null;if(d.removed&&d.items[i]&&d.items[i].o)d.removed.push(d.items[i].o);d.items.splice(i,1);if(!d.items.length)d.items.push({name:'',amount:'',cat:'',src:'',flag:true});render();break;
     case 'add-diff':if(ui.draft)ui.draft.fix=null;{const sum=d.items.reduce((s,x)=>s+(toNum(x.amount)||0),0);const df=r2(d.total-sum);
       d.items.push({name:'Nicht erkannte Position',amount:fmtIn(df),cat:'',src:'',flag:true,suggest:merchantInfo(d.merchant).cat||'sonstiges'});render();break}
     case 'accept':d.items[i].cat=d.items[i].suggest;d.items[i].src='Vorschlag übernommen';ui.err='';render();break;
@@ -268,6 +279,13 @@ document.addEventListener('click',ev=>{
       if(!nm){ui.err='Bitte gib der Kategorie einen Namen.';render();break}
       if(state.categories.some(x=>x.id!==c.id&&x.name.toLowerCase()===nm.toLowerCase())){ui.err=`„${nm}“ gibt es schon.`;render();break}
       c.name=nm.slice(0,30);if(ui.catColor)c.color=ui.catColor;ui.catEdit=null;ui.catColor=null;ui.err='';persist();render();break}
+    case 'dev-report':makeReport().then(n=>{if(n){ui.repDone=n;render()}}).catch(()=>{ui.err='Der Bericht ließ sich nicht speichern.';render()});break;
+    case 'reports-share':shareReports();break;
+    case 'reports-clear':ui.repClear=true;render();break;
+    case 'reports-clear-no':ui.repClear=false;render();break;
+    case 'reports-clear-yes':repClear().then(()=>{ui.repClear=false;ui.repCount=0;ui.flash='Alle Berichte gelöscht.';render()});break;
+    case 'fix-del':{const m=state.rules[b.dataset.kind];if(m&&m[b.dataset.m]){delete m[b.dataset.m][b.dataset.k];if(!Object.keys(m[b.dataset.m]).length)delete m[b.dataset.m]}persist();render();break}
+    case 'layout-del':delete state.rules.layout[b.dataset.m];persist();render();break;
     case 'hints-toggle':ui.hintsOpen=!ui.hintsOpen;render();break;
     case 'backup-go':ui.moreOpen='backup';ui.jumpTo='backup';go('mehr');break;
     case 'backup-snooze':state.prefs.backupSnooze=addDays(today(),7);persist();render();break;
@@ -350,6 +368,7 @@ document.addEventListener('change',ev=>{
   if(t.id==='tax-year'){ui.taxYear=+t.value;render();return}
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
   if(t.id==='use-budgets'){state.useBudgets=t.checked;persist();render();return}
+  if(t.id==='use-dev'){state.prefs.dev=t.checked;persist();if(t.checked)repCount().then(n=>{ui.repCount=n;render()}).catch(()=>{});render();return}
   if(t.id==='use-kasse'){state.prefs.kasse=t.checked;persist();render();return}
   if(t.id==='kasse-tol'){const v=t.value.trim()?toNum(t.value):10;if(!isNaN(v)&&v>=0){state.prefs.kasseTol=r2(v);persist()}t.value=fmtIn(kasseTol());return}
   if(t.name==='g-kind'){goalKindSwitch(t.value);return}
@@ -527,12 +546,41 @@ document.addEventListener('touchcancel',()=>{tabSw=null;main.style.transform=''}
 function maybeTutorial(){if(loadBroken||ui.rescue)return;if(!state.prefs.tutorialDone&&!ui.locked&&!ui.tut){ui.tut={topic:'start',i:0};render()}}
 // Start: erst die Daten laden, dann anzeigen
 function focusAction(){if(!ui.action||ui.locked||ui.tut)return;const n=document.getElementById(ui.action==='photo'?'photo-btn':ui.action==='quick'?'quick':'bon-text');if(n)n.focus();if(ui.action==='quick')ui.action=''}
+/* ---------- Entwickler-Werkzeuge: Erkennungsbericht ----------
+   Enthält: den gelesenen Text, was die App daraus gemacht hat, und die korrigierte Fassung. Foto nur auf Wunsch. */
+async function photoData(){
+  if(!ui.photoUrl)return null;
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=ui.photoUrl});
+  const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');
+  c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',0.8);
+}
+async function makeReport(){
+  const d=ui.draft;if(!d||!d.orig)return 0;
+  const withPhoto=!!(document.getElementById('dev-photo')||{}).checked;
+  const o={app:APP_VERSION,erstellt:new Date().toISOString(),text:d.text||'',
+    gelesen:d.orig,
+    korrigiert:{merchant:d.merchant,date:d.date,total:d.total!=null&&d.total!==''?toNum(String(d.total)):null,items:d.items.map(i=>({name:i.name,gelesen:i.o||'',amount:toNum(i.amount),cat:i.cat}))},
+    hinweise:(d.warn||[]).map(w=>w.t||w),q:d.q||null,seiten:d.pages||1};
+  if(withPhoto)try{o.foto=await photoData()}catch(e){}
+  await repAdd(o);const n=await repCount();ui.repCount=n;return n;
+}
+async function shareReports(){
+  try{
+    const all=await repAll();if(!all.length){ui.flash='Noch keine Berichte gesammelt.';render();return}
+    const text=JSON.stringify({art:'kassensturz-erkennungsberichte',anzahl:all.length,berichte:all},null,1);
+    const name=`kassensturz-berichte-${today()}.txt`,f=new File([text],name,{type:'text/plain'});
+    if(canShareFiles()){try{await navigator.share({files:[f],title:'Kassensturz-Erkennungsberichte'});return}catch(e){if(e&&e.name==='AbortError')return}}
+    download(name,text,'text/plain');ui.flash='Berichte heruntergeladen (Ordner „Downloads“).';render();
+  }catch(e){ui.flash='Die Berichte ließen sich nicht laden.';render()}
+}
 async function boot(){
   main.innerHTML='<p class="muted" style="text-align:center;margin-top:40px">Lade …</p>';
   let loaded=null;try{loaded=await load()}catch(e){}
   state=migrate(loaded||seed());booted=true;
   // alter Stand nur im einfachen Speicher: gleich auch in die Datenbank übernehmen
   if(loaded&&!loadBroken)dbPut(lastJson||JSON.stringify(state));
+  if(state.prefs.dev)repCount().then(n=>{ui.repCount=n}).catch(()=>{});
   ui.locked=!!getLock();
   {const q=new URLSearchParams(location.search);const a=q.get('action');
     if(a==='photo'||a==='text'){ui.action=a;history.replaceState(null,'',location.pathname+'#beleg')}

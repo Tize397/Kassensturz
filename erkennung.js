@@ -228,6 +228,8 @@ function parseReceipt(text,opts){
     else items.push({name:name||'Rabatt',amount:a})};
   // Kopf wie „Artikelnr. Menge Einzel … Gesamt“ und darunter „Bezeichnung“: Name steht unter der Preiszeile
   lines.forEach((l,i)=>{if(i&&/^bezeichnung\b/i.test(l)&&/artikel|menge|einzel/i.test(lines[i-1]))nameBelow=headBelow=true});
+  // Gelernt: Bei diesem Händler steht der Name unter der Preiszeile
+  {const lay=merchant&&typeof state!=='undefined'&&state.rules&&state.rules.layout&&state.rules.layout[normKey(merchant)];if(lay&&lay.below)nameBelow=headBelow=true}
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
     if(isTotalLine(line)&&!/zwischen|subtotal/i.test(line)){
@@ -346,7 +348,7 @@ function parseReceipt(text,opts){
       gross={net:sum,vat:r2(total-sum)};
     }
   }
-  return {merchant,date:dt?dt.iso:'',dateFound:!!dt,total,totalVotes,items,gross,fix:gross?null:fix,due:findDue(lines,dt&&dt.iso),type:merchantType(merchant)};
+  return {merchant,below:nameBelow,date:dt?dt.iso:'',dateFound:!!dt,total,totalVotes,items,gross,fix:gross?null:fix,due:findDue(lines,dt&&dt.iso),type:merchantType(merchant)};
 }
 
 const CRAFT_LABOR=/ARBEIT|LOHN|MONTAGE|MONTEUR|ANFAHRT|FAHRT|STUNDE|MEISTER|GESELLE|REPARATUR|WARTUNG|ENTSORG|DEMONTAGE|EINBAU|INSTALLATION/;
@@ -358,18 +360,21 @@ function fixHintFor(merchant,type){
     (type==='utility'&&/strom|gas|wasser|energie|nebenkosten|heiz|abschlag/i.test(f.name))||
     normKey(f.name).split(' ').some(w=>w.length>=4&&words.includes(w))))||null;
 }
+// Aus Korrekturen gelernt (je Händler): verlesene Namen ersetzen, Störzeilen weglassen
+function learnedFor(merchant){const mk=normKey(merchant||'');return {fix:(state.rules.fix||{})[mk]||{},drop:(state.rules.drop||{})[mk]||{}}}
 function makeDraft(parsed){
-  const mi=merchantInfo(parsed.merchant);
-  let items=parsed.items;
+  const mi=merchantInfo(parsed.merchant),lf=learnedFor(parsed.merchant);
+  const orig={merchant:parsed.merchant,date:parsed.date||'',total:parsed.total,items:parsed.items.map(i=>[i.name,i.amount])};
+  let items=parsed.items.filter(i=>!lf.drop[normKey(i.name)]).map(i=>{const f=lf.fix[normKey(i.name)];return f?{...i,o:i.name,name:f,lfix:true}:{...i,o:i.name}});
   if(!items.length) items=[{name:parsed.merchant||'',amount:parsed.total||0}];
   const type=parsed.type||merchantType(parsed.merchant);
   const fx=fixHintFor(parsed.merchant,type);
-  const mkItems=list=>list.map(it=>{const sk=similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
+  const mkItems=list=>list.map(it=>{const sk=it.lfix?null:similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
       if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
-      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:it.sim&&c.src?c.src+' · Name korrigiert':c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}});
+      return {name:it.name,o:it.o||'',amount:fmtIn(it.amount),cat:c.cat,src:(it.sim||it.lfix)&&c.src?c.src+(it.lfix?' · Lesefehler korrigiert':' · Name korrigiert'):c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}});
   const sum=r2(items.reduce((a,x)=>a+x.amount,0));
   let collapsed=null;
   // Positionen gehen nicht auf, aber der Laden hat nur eine Kategorie: sicheren Gesamtbetrag nehmen
@@ -378,12 +383,12 @@ function makeDraft(parsed){
   }
   return {id:null,refund:false,merchant:parsed.merchant,date:parsed.date||today(),dateGuessed:!parsed.dateFound,total:parsed.total,always:false,
     gross:parsed.gross||null,open:!!parsed.due,due:parsed.due||'',fixHint:fx?fx.id:null,collapsed,
-    items:items.map(it=>{const sk=similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
+    items:items.map(it=>{const sk=it.lfix?null:similarKnown(it.name,parsed.merchant);if(sk)it={...it,name:sk.name,sim:true};const c=classify(it.name,mi);const k=normKey(it.name);
       let tax=state.rules.tax[k]||'';
       if(!tax&&type==='craft'&&CRAFT_LABOR.test(k))tax='handwerker';
       if(!tax&&type==='medical')tax='krankheit';
       if(!tax&&c.cat==='versich')tax=taxSuggest(it.name,c.cat);
-      return {name:it.name,amount:fmtIn(it.amount),cat:c.cat,src:it.sim&&c.src?c.src+' · Name korrigiert':c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}}),pages:parsed.pages||0,warn:parsed.warn||[],q:parsed.q||null,fix:collapsed?null:(parsed.fix||null),giro:parsed.giro||null,tse:parsed.tse||null,pay:parsed.tse?parsed.tse.pay:''};
+      return {name:it.name,o:it.o||'',amount:fmtIn(it.amount),cat:c.cat,src:(it.sim||it.lfix)&&c.src?c.src+(it.lfix?' · Lesefehler korrigiert':' · Name korrigiert'):c.src,flag:c.flag,suggest:c.suggest,tax,check:!!it.check}}),pages:parsed.pages||0,orig,below:!!parsed.below,warn:parsed.warn||[],q:parsed.q||null,fix:collapsed?null:(parsed.fix||null),giro:parsed.giro||null,tse:parsed.tse||null,pay:parsed.tse?parsed.tse.pay:''};
 }
 function reclassify(){
   const d=ui.draft;if(!d)return;
@@ -894,6 +899,6 @@ function parseNow(pre){
   if(!t.trim()){ui.err='Wähle ein Foto oder füge zuerst den Text eines Belegs ein.';render();return}
   const p=pre||parseReceipt(t);
   if(!p.items.length&&p.total==null){ui.err='In diesem Text habe ich keine Beträge gefunden. Prüfe, ob die Preise mitkopiert wurden (z. B. „1,29“).';render();return}
-  ui.draft=makeDraft(p);ui.dupOk=false;ui.dup=null;ui.err='';render();window.scrollTo(0,0);
+  ui.draft=makeDraft(p);ui.draft.text=t;ui.draft.removed=[];ui.repDone=0;ui.dupOk=false;ui.dup=null;ui.err='';render();window.scrollTo(0,0);
 }
 

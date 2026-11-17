@@ -3,7 +3,7 @@
 // daten.js → erkennung.js → ansichten.js → app.js
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.9.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.10.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -84,9 +84,16 @@ const KW={
    Beide gehören nur zu dieser App-Adresse; andere Webseiten und Apps kommen nicht heran.
    Beim Start gewinnt die neuere lesbare Kopie (Zeitstempel savedAt). */
 let storageOk=true,loadBroken=false,booted=false,lastJson=null,lsFull=false;
-function dataDb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('kassensturz-daten',1);
-  r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'))}catch(e){rej(e)}})}
+function dataDb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('kassensturz-daten',2);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');if(!d.objectStoreNames.contains('reports'))d.createObjectStore('reports',{autoIncrement:true})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'))}catch(e){rej(e)}})}
 let dbConn=null;
+// Erkennungsberichte (nur mit Entwickler-Werkzeugen): eigene Ablage in derselben Datenbank
+async function repStore(mode){if(!dbConn)dbConn=await dataDb();return dbConn.transaction('reports',mode).objectStore('reports')}
+const reqP=q=>new Promise((res,rej)=>{q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+async function repAdd(o){return reqP((await repStore('readwrite')).add(o))}
+async function repAll(){return reqP((await repStore('readonly')).getAll())}
+async function repCount(){return reqP((await repStore('readonly')).count())}
+async function repClear(){return reqP((await repStore('readwrite')).clear())}
 async function dbGet(){if(!dbConn)dbConn=await dataDb();return new Promise((res,rej)=>{const q=dbConn.transaction('kv','readonly').objectStore('kv').get('state');q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}
 let dbQueue=Promise.resolve(),dbOk=null;
 function dbPut(json){
@@ -198,7 +205,7 @@ function migrate(s){
   s.receipts=Array.isArray(s.receipts)?s.receipts:[];
   s.fixed=(Array.isArray(s.fixed)?s.fixed:[]).map(f=>({kind:'out',start:'',end:'',...f,interval:f.interval==null?1:+f.interval}));
   s.rules=s.rules||{};s.rules.products=s.rules.products||{};s.rules.merchants=s.rules.merchants||{};
-  s.rules.tax=s.rules.tax||{};
+  s.rules.tax=s.rules.tax||{};s.rules.fix=s.rules.fix||{};s.rules.drop=s.rules.drop||{};s.rules.layout=s.rules.layout||{};
   s.goals=Array.isArray(s.goals)?s.goals.map(g=>({rates:[],...g})):[];s.deposits=Array.isArray(s.deposits)?s.deposits:[];
   s.yearExport=s.yearExport||{};
   s.templates=Array.isArray(s.templates)?s.templates:[];s.prefs=s.prefs||{};
