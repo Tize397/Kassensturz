@@ -368,6 +368,7 @@ document.addEventListener('change',ev=>{
   if(t.id==='tax-year'){ui.taxYear=+t.value;render();return}
   if(t.id==='chart-cat'){ui.chartCat=t.value;render();return}
   if(t.id==='use-budgets'){state.useBudgets=t.checked;persist();render();return}
+  if(t.id==='use-ki'){state.prefs.ki=t.checked;persist();if(t.checked)kiPrefetch();render();return}
   if(t.id==='use-dev'){state.prefs.dev=t.checked;persist();if(t.checked)repCount().then(n=>{ui.repCount=n;render()}).catch(()=>{});render();return}
   if(t.id==='use-kasse'){state.prefs.kasse=t.checked;persist();render();return}
   if(t.id==='kasse-tol'){const v=t.value.trim()?toNum(t.value):10;if(!isNaN(v)&&v>=0){state.prefs.kasseTol=r2(v);persist()}t.value=fmtIn(kasseTol());return}
@@ -467,7 +468,7 @@ document.addEventListener('submit',ev=>{
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();ui.installEvt=e;if(ui.tab==='mehr')render()});
 window.addEventListener('appinstalled',()=>{ui.installed=true;ui.installEvt=null;render()});
 if(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)ui.installed=true;
-if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
 
 async function checkShared(){
   if(!new URLSearchParams(location.search).has('shared')||!('caches' in window))return;
@@ -561,7 +562,7 @@ async function makeReport(){
   const o={app:APP_VERSION,erstellt:new Date().toISOString(),text:d.text||'',
     gelesen:d.orig,
     korrigiert:{merchant:d.merchant,date:d.date,total:d.total!=null&&d.total!==''?toNum(String(d.total)):null,items:d.items.map(i=>({name:i.name,gelesen:i.o||'',amount:toNum(i.amount),cat:i.cat}))},
-    hinweise:(d.warn||[]).map(w=>w.t||w),q:d.q||null,seiten:d.pages||1};
+    hinweise:(d.warn||[]).map(w=>w.t||w),q:d.q||null,leser:d.q&&d.q.engine?(d.q.engine==='ki'?'KI (PaddleOCR)':'Tesseract'):'Text/PDF',seiten:d.pages||1};
   if(withPhoto)try{o.foto=await photoData()}catch(e){}
   await repAdd(o);const n=await repCount();ui.repCount=n;return n;
 }
@@ -590,5 +591,6 @@ async function boot(){
   focusAction();
   checkShared();
   loadSnaps();
+  kiPrefetch();
 }
 boot();

@@ -13,7 +13,7 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 1. Oben rechts auf „+“ → „New repository“.
 2. Name: `kassensturz`, Sichtbarkeit „Public“, dann „Create repository“.
 3. Auf „uploading an existing file“ klicken.
-4. Alle Dateien und den Ordner `tests` aus diesem ZIP hineinziehen (index.html, die vier Programmdateien daten.js, erkennung.js, ansichten.js und app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
+4. Alle Dateien und die Ordner `ki` und `tests` aus diesem ZIP hineinziehen (index.html, die fünf Programmdateien daten.js, erkennung.js, ki.js, ansichten.js und app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
 5. Unten auf „Commit changes“.
 
 ## 3. Als Webseite freischalten
@@ -40,6 +40,15 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 - Die Fotoerkennung lädt beim ersten Mal einmalig deutsche Sprachdaten (Internet nötig).
 - Unter „Mehr → Backup & Export“ regelmäßig „Backup teilen“ und z. B. Google Drive wählen. Die App erinnert dich, wenn das letzte Backup älter als einen Monat ist.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Eine alte Datei `icon-text-192.png` kannst du bei GitHub löschen, sie wird nicht mehr gebraucht. Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
+
+## Neu in 2.11: KI-Texterkennung
+- Eine kleine KI (PaddleOCR) liest Bon-Fotos direkt auf dem Handy. Sie ist deutlich genauer als die bisherige Erkennung, besonders bei blassem Thermopapier.
+- **Datenschutz:** Die KI rechnet komplett im Handy. Fotos und Text werden nirgendwohin geschickt. Die Modelldateien liegen im Ordner `ki` deiner eigenen GitHub-Seite.
+- **Laden:** Einmalig ca. 24 MB, automatisch im Hintergrund und nur im WLAN. Danach bleibt sie dauerhaft im Handy, auch über App-Updates hinweg, und funktioniert offline.
+- **Speicher:** etwa 25–30 MB zusätzlich (zu sehen unter den Website-Daten von Chrome).
+- **Rückfallebene:** Ist die KI (noch) nicht geladen oder geht ihr Ergebnis nicht auf, liest die bisherige Erkennung mit. Das Ergebnis, das rechnerisch aufgeht, gewinnt.
+- **Hochladen:** Den Ordner `ki` mit allen sechs Dateien bei GitHub mit hochladen. Fehlt er, läuft die App ohne KI weiter.
+- Unter „Mehr → Entwickler-Werkzeuge“ lässt sich die KI zum Vergleichen abschalten.
 
 ## Neu in 2.10
 - **Lernen aus Korrekturen:** Verbesserst du beim Prüfen eines Belegs einen verlesenen Namen, setzt die App ihn beim selben Händler künftig selbst ein. Löschst du eine Störzeile, lässt sie die beim nächsten Mal weg. Steht bei einem Händler der Name unter dem Preis, merkt sie sich das. Alles einsehbar und löschbar unter „Mehr → Kategorien & Gelerntes → Lesekorrekturen“.

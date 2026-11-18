@@ -1,9 +1,11 @@
 // Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
 // Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in daten.js).
-const VERSION = 'kassensturz-v2.10.0';
+const VERSION = 'kassensturz-v2.11.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
-const SHELL = ['./', './index.html', './daten.js', './erkennung.js', './ansichten.js', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-quick-192.png'];
+// KI-Modelle: eigener Speicher, der bei App-Updates erhalten bleibt (nur bei neuem Modell neuen Namen vergeben)
+const KI_CACHE = 'kassensturz-ki-v1';
+const SHELL = ['./', './index.html', './daten.js', './erkennung.js', './ki.js', './ansichten.js', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-quick-192.png'];
 const NET_TIMEOUT = 3500;
 
 self.addEventListener('install', e => {
@@ -14,7 +16,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => ![VERSION, RUNTIME, SHARE].includes(k)).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => ![VERSION, RUNTIME, SHARE, KI_CACHE].includes(k)).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -70,6 +72,15 @@ self.addEventListener('fetch', e => {
   // App-Seite
   if (req.mode === 'navigate' && same) {
     e.respondWith(networkFirst(() => fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }), './index.html'));
+    return;
+  }
+
+  // KI-Dateien: einmal laden, danach immer aus dem Gerät (auch offline, kein Datenvolumen)
+  if (same && url.pathname.includes('/ki/')) {
+    e.respondWith(caches.open(KI_CACHE).then(c => c.match(req.url).then(hit => hit || fetch(req.url, { cache: 'no-cache' }).then(res => {
+      if (res && res.ok) c.put(req.url, res.clone());
+      return res;
+    }))));
     return;
   }
 

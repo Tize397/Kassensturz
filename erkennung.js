@@ -93,6 +93,7 @@ function findPrice(line){
 }
 // Typische Lesefehler in Preisen am Zeilenende: „1, 99“, „2 ,49“, „l,19“, „O,99“, „3,S9“
 function fixPrices(l){
+  l=l.replace(/\b(\d{1,2})\s?\.\s?(\d{1,2})\s?\.\s?((?:19|20)\d{2})\b/g,'$1.$2.$3');   // „12. 11 . 2026“ → „12.11.2026“
   l=l.replace(/(\d)\s?,\s?(\d{2})(?![\d.,])/g,'$1,$2');
   return l.replace(/(^|\s)(-?[0-9OoIlS]{1,4})\s?[,.]\s?([0-9OoIlS]{2})(\s*(?:€|EUR)?\s*[A-D12]?\s*[*#]*)$/,(all,a,x,y,z)=>{
     if(((x+y).match(/\d/g)||[]).length<2||!/[OoIlS]/.test(x+y))return all;
@@ -702,7 +703,12 @@ async function readImage(src,W,H,rot0,fixed){
   const fin=(res,v,rot)=>{res.q=v.q;res.rot=((rot%360)+360)%360;return res};
   const poor=r=>!verified(r.p)&&r.sc<7;
   const v0=prep(rot0);
-  if(fixed)return fin(await ocrCanvases(v0,false),v0,rot0);
+  // Zuerst die KI-Texterkennung (falls im Gerät vorhanden). Geht ihr Ergebnis rechnerisch auf, ist sie fertig.
+  let kiRes=null;
+  if(await kiUsable()){
+    try{ocrPass='';pageNote='';kiRes=fin(await kiRead(v0),v0,rot0);if(verified(kiRes.p)){delete kiRes.runs;return kiRes}}catch(e){kiRes=null}
+  }
+  if(fixed){const r=fin(await ocrCanvases(v0,false),v0,rot0);return kiRes&&kiRes.sc>r.sc?kiRes:r}
   // Erste Lage gründlich lesen (bei Verdacht auf „quer“ zuerst kurz die gedrehte Lage prüfen), die übrigen nur kurz
   const order=v0.side?[[rot0+90,true],[rot0,false],[rot0+270,true],[rot0+180,true]]:[[rot0,false],[rot0+180,true],[rot0+90,true],[rot0+270,true]];
   let best=null,bestV=null,bestQuick=false;
@@ -715,6 +721,10 @@ async function readImage(src,W,H,rot0,fixed){
   }
   pageNote='';
   if(bestQuick&&!verified(best.p)){const full=await ocrCanvases(bestV,false,best);if(full.sc>=best.sc)best=fin(full,bestV,best.rot)}
+  // Lag der Bon gedreht, die KI auf der richtigen Lage noch einmal lesen lassen
+  if(kiRes&&best.rot!==kiRes.rot&&!verified(best.p)){try{const k2=fin(await kiRead(prep(best.rot)),prep(best.rot),best.rot);if(k2.sc>best.sc)best=k2}catch(e){}}
+  // Ergebnis, das rechnerisch aufgeht, gewinnt; sonst das mit der besseren Bewertung
+  else if(kiRes&&(verified(kiRes.p)&&!verified(best.p)||!verified(best.p)&&kiRes.sc>best.sc))best=kiRes;
   delete best.runs;return best;
 }
 /* PDF: Text direkt auslesen, eingescannte PDFs über die Texterkennung */
@@ -858,7 +868,7 @@ async function readOne(file,keepPhoto,rot,fixed){
     if(q.sharp<BLUR_LIMIT)w.push('unscharf');
     if(q.dark)w.push('sehr dunkel');
     if(res.textH&&res.textH<SMALL_LIMIT)w.push('klein');
-    res.p.warn=verified(res.p)?[]:w;res.p.rot=res.rot||0;res.p.q={sharp:q.sharp,textH:res.textH,angle:q.angle,inverted:q.inverted,rot:res.rot};
+    res.p.warn=verified(res.p)?[]:w;res.p.rot=res.rot||0;res.p.q={sharp:q.sharp,textH:res.textH,angle:q.angle,inverted:q.inverted,rot:res.rot,engine:res.engine||'tess'};
     return res;
   }finally{if(!keepPhoto)URL.revokeObjectURL(url)}
 }
