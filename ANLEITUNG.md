@@ -13,7 +13,7 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 1. Oben rechts auf „+“ → „New repository“.
 2. Name: `kassensturz`, Sichtbarkeit „Public“, dann „Create repository“.
 3. Auf „uploading an existing file“ klicken.
-4. Alle Dateien und die Ordner `ki` und `tests` aus diesem ZIP hineinziehen (index.html, die fünf Programmdateien daten.js, erkennung.js, ki.js, ansichten.js und app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
+4. Alle Dateien und die Ordner `ki` und `tests` aus diesem ZIP hineinziehen (index.html, die sechs Programmdateien daten.js, erkennung.js, ki.js, ki-worker.js, ansichten.js und app.js, sw.js, version.json, manifest.webmanifest und alle fünf Icons).
 5. Unten auf „Commit changes“.
 
 ## 3. Als Webseite freischalten
@@ -40,6 +40,10 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 - Die Fotoerkennung lädt beim ersten Mal einmalig deutsche Sprachdaten (Internet nötig).
 - Unter „Mehr → Backup & Export“ regelmäßig „Backup teilen“ und z. B. Google Drive wählen. Die App erinnert dich, wenn das letzte Backup älter als einen Monat ist.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Eine alte Datei `icon-text-192.png` kannst du bei GitHub löschen, sie wird nicht mehr gebraucht. Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
+
+## Neu in 2.13: Flüssiger Start
+- Die KI lädt und rechnet jetzt in einem eigenen Hintergrund-Prozess (neue Datei `ki-worker.js`). Die App ist direkt nach dem Start bedienbar und hakt auch nicht mehr, während ein Bon gelesen wird.
+- **Hochladen:** Die neue Datei `ki-worker.js` gehört ins Hauptverzeichnis, neben `ki.js`. Den Ordner `ki` nicht erneut hochladen.
 
 ## Neu in 2.12: Schnellere KI
 - **Früher fertig:** Die KI liest den Bon von oben nach unten und hört auf, sobald Summe, Positionen und Datum zusammenpassen. Kassenbons gehen dadurch etwa ein Drittel bis die Hälfte schneller. Rechnungen ohne Datum dauern so lange wie bisher.

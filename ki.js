@@ -4,10 +4,10 @@
 'use strict';
 const KI_BASE='ki/';
 const KI_FILES={det:'pp-ocrv5_mobile_det.onnx',rec:'latin_pp-ocrv5_mobile_rec.onnx',dict:'ppocrv5_latin_dict.txt'};
-const KI={ready:null,det:null,rec:null,ch:null,failed:false,loaded:false};
+const KI={ready:null,failed:false,loaded:false};
 
 // Darf die KI genutzt bzw. geladen werden?
-function kiEnabled(){return state.prefs.ki!==false&&typeof WebAssembly==='object'&&!KI.failed}
+function kiEnabled(){return state.prefs.ki!==false&&typeof WebAssembly==='object'&&typeof Worker==='function'&&!KI.failed}
 // Mobiles Netz oder Datensparmodus: große Dateien erst im WLAN laden
 function kiCellular(){try{const c=navigator.connection;return !!(c&&(c.saveData||c.type==='cellular'))}catch(e){return false}}
 // Liegen die Modelle schon im Gerät?
@@ -17,23 +17,20 @@ async function kiCached(){
 }
 const KI_CACHE='kassensturz-ki-v1';
 
+// Die KI rechnet in einem eigenen Hintergrund-Prozess (ki-worker.js), damit die Oberfläche flüssig bleibt
+let kiWorker=null,kiMsgId=0;const kiWait=new Map();
+function kiCall(cmd,arg,transfer){
+  return new Promise((res,rej)=>{const id=++kiMsgId;kiWait.set(id,{res,rej});kiWorker.postMessage({id,cmd,arg},transfer||[])});
+}
 function kiLoad(){
   if(KI.ready)return KI.ready;
   KI.ready=(async()=>{
-    if(!window.ort)await new Promise((res,rej)=>{const s=document.createElement('script');s.src=KI_BASE+'ort.wasm.min.js';s.onload=res;s.onerror=()=>rej(new Error('load'));document.head.appendChild(s)});
-    const ort=window.ort;
-    ort.env.wasm.wasmPaths=new URL(KI_BASE,location.href).href;
-    ort.env.wasm.numThreads=1;   // ohne besondere Server-Einstellungen sind keine Rechen-Threads möglich
-    ort.env.logLevel='error';
-    const opt={executionProviders:['wasm'],graphOptimizationLevel:'all'};
-    const [det,rec,dict]=await Promise.all([
-      ort.InferenceSession.create(KI_BASE+KI_FILES.det,opt),
-      ort.InferenceSession.create(KI_BASE+KI_FILES.rec,opt),
-      fetch(KI_BASE+KI_FILES.dict).then(r=>{if(!r.ok)throw new Error('dict');return r.text()})]);
-    const lines=dict.split(/\r?\n/);if(lines.length&&lines[lines.length-1]==='')lines.pop();
-    KI.det=det;KI.rec=rec;KI.ch=['',...lines,' '];KI.loaded=true;   // 0 = Lücke, dann Zeichenliste, zuletzt Leerzeichen
-    return true;
-  })().catch(e=>{KI.ready=null;KI.failed=true;throw e});
+    kiWorker=new Worker('ki-worker.js');
+    kiWorker.onmessage=e=>{const m=e.data,w=kiWait.get(m.id);if(!w)return;kiWait.delete(m.id);m.ok?w.res(m.r):w.rej(new Error(m.err))};
+    kiWorker.onerror=e=>{e.preventDefault&&e.preventDefault();const err=new Error('worker');kiWait.forEach(w=>w.rej(err));kiWait.clear()};
+    await kiCall('load');
+    KI.loaded=true;return true;
+  })().catch(e=>{KI.ready=null;KI.failed=true;try{kiWorker&&kiWorker.terminate()}catch(x){}kiWorker=null;throw e});
   return KI.ready;
 }
 // Im Hintergrund laden, sobald die App läuft (nicht im mobilen Netz)
@@ -44,62 +41,27 @@ function kiPrefetch(){
   if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:8000});else setTimeout(run,3000);
 }
 
-const KI_MEAN=[0.485,0.456,0.406],KI_STD=[0.229,0.224,0.225];
-// Schritt 1: Textzeilen finden (Wahrscheinlichkeitskarte → zusammenhängende Flächen → Kästen)
+// Schritt 1: Textzeilen finden. Hier nur das Bild auf passende Größe bringen, gerechnet wird im Hintergrund.
 async function kiDetect(src,W,H){
-  const ort=window.ort;
   let k=Math.min(1,960/W);if(W*k<576)k=960/W;          // schmale Bons hochskalieren, breite verkleinern
   if(W*H*k*k>3e6)k=Math.sqrt(3e6/(W*H));
   const w=Math.max(32,Math.round(W*k/32)*32),h=Math.max(32,Math.round(H*k/32)*32);
   const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});
   x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(src,0,0,w,h);
-  const d=x.getImageData(0,0,w,h).data,n=w*h,inp=new Float32Array(3*n);
-  for(let i=0;i<n;i++){const r=d[i*4]/255,g=d[i*4+1]/255,b=d[i*4+2]/255;   // Reihenfolge wie beim Training: Blau, Grün, Rot
-    inp[i]=(b-KI_MEAN[0])/KI_STD[0];inp[n+i]=(g-KI_MEAN[1])/KI_STD[1];inp[2*n+i]=(r-KI_MEAN[2])/KI_STD[2]}
-  const out=await KI.det.run({x:new ort.Tensor('float32',inp,[1,3,h,w])});
-  const p=out[Object.keys(out)[0]].data;
-  // zusammenhängende Flächen über 0,3
-  const lab=new Int32Array(n),stack=new Int32Array(n),boxes=[];let id=0;
-  for(let s=0;s<n;s++){
-    if(lab[s]||p[s]<=0.3)continue;
-    id++;let sp=0,cnt=0,sum=0,x0=w,y0=h,x1=0,y1=0;stack[sp++]=s;lab[s]=id;
-    while(sp){const q=stack[--sp],qx=q%w,qy=(q-qx)/w;cnt++;sum+=p[q];
-      if(qx<x0)x0=qx;if(qx>x1)x1=qx;if(qy<y0)y0=qy;if(qy>y1)y1=qy;
-      if(qx>0&&!lab[q-1]&&p[q-1]>0.3){lab[q-1]=id;stack[sp++]=q-1}
-      if(qx<w-1&&!lab[q+1]&&p[q+1]>0.3){lab[q+1]=id;stack[sp++]=q+1}
-      if(qy>0&&!lab[q-w]&&p[q-w]>0.3){lab[q-w]=id;stack[sp++]=q-w}
-      if(qy<h-1&&!lab[q+w]&&p[q+w]>0.3){lab[q+w]=id;stack[sp++]=q+w}}
-    if(cnt<6||sum/cnt<0.6)continue;
-    const bw=x1-x0+1,bh=y1-y0+1,off=cnt*1.5/(2*(bw+bh));   // Kasten um den Textkern erweitern
-    boxes.push([(x0-off)*W/w,(y0-off)*H/h,(x1+1+off)*W/w,(y1+1+off)*H/h]);
-  }
-  return boxes;
+  const d=x.getImageData(0,0,w,h).data;
+  return kiCall('det',{d,w,h,W,H},[d.buffer]);
 }
-// Schritt 2: Jede Zeile lesen (48 Pixel hoch, gebündelt nach Breite)
+// Schritt 2: Zeilen ausschneiden (48 Pixel hoch) und im Hintergrund lesen lassen
 async function kiRecognize(src,W,H,boxes){
-  const ort=window.ort,crops=[];
+  const crops=[],tr=[];
   for(const b of boxes){
     const x0=Math.max(0,b[0]),y0=Math.max(0,b[1]),x1=Math.min(W,b[2]),y1=Math.min(H,b[3]);
     if(x1-x0<3||y1-y0<3){crops.push(null);continue}
     const nw=Math.max(8,Math.min(1600,Math.round((x1-x0)*48/(y1-y0))));
     const c=document.createElement('canvas');c.width=nw;c.height=48;const x=c.getContext('2d',{willReadFrequently:true});
-    x.drawImage(src,x0,y0,x1-x0,y1-y0,0,0,nw,48);crops.push({w:nw,d:x.getImageData(0,0,nw,48).data});
+    x.drawImage(src,x0,y0,x1-x0,y1-y0,0,0,nw,48);const d=x.getImageData(0,0,nw,48).data;crops.push({w:nw,d});tr.push(d.buffer);
   }
-  const order=crops.map((c,i)=>i).filter(i=>crops[i]).sort((a,b)=>crops[a].w-crops[b].w),res=new Array(crops.length).fill(null);
-  // Nur ähnlich lange Zeilen gemeinsam lesen: Auffüllen kurzer Zeilen kostet Zeit und kann das Ergebnis verfälschen
-  const groups=[];for(const i of order){const g=groups[groups.length-1];if(g&&g.length<12&&crops[i].w<=crops[g[0]].w*1.25)g.push(i);else groups.push([i])}
-  for(const idx of groups){
-    const mw=Math.max(...idx.map(i=>crops[i].w)),plane=48*mw,inp=new Float32Array(idx.length*3*plane);
-    idx.forEach((i,j)=>{const c=crops[i],o=j*3*plane;
-      for(let y=0;y<48;y++)for(let xx=0;xx<c.w;xx++){const p=(y*c.w+xx)*4,t=y*mw+xx;
-        inp[o+t]=c.d[p]/127.5-1;inp[o+plane+t]=c.d[p+1]/127.5-1;inp[o+2*plane+t]=c.d[p+2]/127.5-1}});
-    const out=await KI.rec.run({x:new ort.Tensor('float32',inp,[idx.length,3,48,mw])}),t=out[Object.keys(out)[0]],[, T, C]=t.dims,a=t.data;
-    idx.forEach((i,j)=>{let txt='',conf=0,nc=0,prev=0;
-      for(let k=0;k<T;k++){const o=(j*T+k)*C;let bi=0,bv=-1;for(let c=0;c<C;c++)if(a[o+c]>bv){bv=a[o+c];bi=c}
-        if(bi&&bi!==prev){txt+=KI.ch[bi]||'';conf+=bv;nc++}prev=bi}
-      res[i]={t:txt,c:nc?conf/nc:0}});
-  }
-  return res;
+  return kiCall('rec',{crops},tr);
 }
 // Schritt 3: Kästen zu Zeilen ordnen (gleiche Höhe = gleiche Zeile, große Lücke = Spaltenabstand)
 function kiLines(boxes,texts){

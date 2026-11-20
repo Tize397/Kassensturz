@@ -1,11 +1,11 @@
 // Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
 // Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in daten.js).
-const VERSION = 'kassensturz-v2.12.0';
+const VERSION = 'kassensturz-v2.13.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
 // KI-Modelle: eigener Speicher, der bei App-Updates erhalten bleibt (nur bei neuem Modell neuen Namen vergeben)
 const KI_CACHE = 'kassensturz-ki-v1';
-const SHELL = ['./', './index.html', './daten.js', './erkennung.js', './ki.js', './ansichten.js', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-quick-192.png'];
+const SHELL = ['./', './index.html', './daten.js', './erkennung.js', './ki.js', './ki-worker.js', './ansichten.js', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './icon-photo-192.png', './icon-quick-192.png'];
 const NET_TIMEOUT = 3500;
 
 self.addEventListener('install', e => {

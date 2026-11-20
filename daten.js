@@ -3,7 +3,7 @@
 // daten.js → erkennung.js → ansichten.js → app.js
 'use strict';
 const KEY='kassensturz-v1';
-const APP_VERSION='2.12.0'; // zusammen mit version.json und sw.js hochzählen
+const APP_VERSION='2.13.0'; // zusammen mit version.json und sw.js hochzählen
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MSHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
