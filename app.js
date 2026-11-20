@@ -250,7 +250,7 @@ document.addEventListener('click',ev=>{
     case 'pick-merge':{const f=ui.pick||[];runPages(f);break}
     case 'pick-cancel':ui.pick=null;render();break;
     case 'queue-next':ui.err='';queueNext();break;
-    case 'queue-stop':ui.queue=[];ui.err='';if(!ui.draft&&!ui.ocr)queueNext();else render();break;
+    case 'queue-stop':dropPrefetch();ui.queue=[];ui.err='';if(!ui.draft&&!ui.ocr)queueNext();else render();break;
     case 'jump':{ev.preventDefault();const n=document.getElementById(b.dataset.to);if(n)n.scrollIntoView({block:'start'});break}
     case 'goal-new':ui.goalNew=b.dataset.pot?'pot':'goal';ui.planOpen='sparziele';ui.goalEdit=null;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
     case 'goal-edit':ui.goalEdit=id;ui.goalNew=false;ui.depositFor=null;ui.err='';render();focusForm('g-name');break;
@@ -562,7 +562,7 @@ async function makeReport(){
   const o={app:APP_VERSION,erstellt:new Date().toISOString(),text:d.text||'',
     gelesen:d.orig,
     korrigiert:{merchant:d.merchant,date:d.date,total:d.total!=null&&d.total!==''?toNum(String(d.total)):null,items:d.items.map(i=>({name:i.name,gelesen:i.o||'',amount:toNum(i.amount),cat:i.cat}))},
-    hinweise:(d.warn||[]).map(w=>w.t||w),q:d.q||null,leser:d.q&&d.q.engine?(d.q.engine==='ki'?'KI (PaddleOCR)':'Tesseract'):'Text/PDF',seiten:d.pages||1};
+    hinweise:(d.warn||[]).map(w=>w.t||w),q:d.q||null,leser:d.q&&d.q.engine?(d.q.engine==='ki'?'KI (PaddleOCR)'+(d.q.kiRows?', Kästen '+d.q.kiRows:''):'Tesseract'):'Text/PDF',seiten:d.pages||1};
   if(withPhoto)try{o.foto=await photoData()}catch(e){}
   await repAdd(o);const n=await repCount();ui.repCount=n;return n;
 }

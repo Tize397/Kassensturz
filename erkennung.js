@@ -228,7 +228,7 @@ function parseReceipt(text,opts){
     if(items.length){const it=items[items.length-1];it.amount=r2(it.amount+a);if(Math.abs(it.amount)<0.005)items.pop()}
     else items.push({name:name||'Rabatt',amount:a})};
   // Kopf wie „Artikelnr. Menge Einzel … Gesamt“ und darunter „Bezeichnung“: Name steht unter der Preiszeile
-  lines.forEach((l,i)=>{if(i&&/^bezeichnung\b/i.test(l)&&/artikel|menge|einzel/i.test(lines[i-1]))nameBelow=headBelow=true});
+  lines.forEach((l,i)=>{if(i&&/^bezeichnung/i.test(l.replace(/\s+/g,''))&&/artikel|menge|einzel/i.test(lines[i-1].replace(/\s+/g,'')))nameBelow=headBelow=true});   // auch „Beze ichnung“, „Art ike Inr“
   // Gelernt: Bei diesem Händler steht der Name unter der Preiszeile
   {const lay=merchant&&typeof state!=='undefined'&&state.rules&&state.rules.layout&&state.rules.layout[normKey(merchant)];if(lay&&lay.below)nameBelow=headBelow=true}
   for(let i=0;i<lines.length;i++){
@@ -856,7 +856,7 @@ async function readOne(file,keepPhoto,rot,fixed){
   if(isPdf(file))return withTimeout(readPdf(file),60000);
   if(!/^image\//.test(file.type||'image/'))throw new Error('type');
   const {img,url}=await loadImage(file);
-  if(keepPhoto)ui.photoUrl=url;
+  if(keepPhoto===true)ui.photoUrl=url;
   try{
     setProgress('Suche QR-Code …',0.02);
     const codes=await scanCodes(img,img.naturalWidth,img.naturalHeight);
@@ -868,7 +868,8 @@ async function readOne(file,keepPhoto,rot,fixed){
     if(q.sharp<BLUR_LIMIT)w.push('unscharf');
     if(q.dark)w.push('sehr dunkel');
     if(res.textH&&res.textH<SMALL_LIMIT)w.push('klein');
-    res.p.warn=verified(res.p)?[]:w;res.p.rot=res.rot||0;res.p.q={sharp:q.sharp,textH:res.textH,angle:q.angle,inverted:q.inverted,rot:res.rot,engine:res.engine||'tess'};
+    res.p.warn=verified(res.p)?[]:w;res.p.rot=res.rot||0;res.p.q={sharp:q.sharp,textH:res.textH,angle:q.angle,inverted:q.inverted,rot:res.rot,engine:res.engine||'tess',kiRows:res.kiRows||''};
+    if(keepPhoto==='bg')res.photoUrl=url;
     return res;
   }finally{if(!keepPhoto)URL.revokeObjectURL(url)}
 }
@@ -879,11 +880,27 @@ async function runOCR(file,opts){
   ui.lastFile=pdf?null:file;
   ui.err='';ui.draft=null;ui.pick=null;ui.ocr={label:pdf?'Öffne PDF …':'Bereite Foto vor …',p:0};go('beleg');
   try{
-    const res=await readOne(file,true,o.rot||0,o.rot!=null);
+    let res;
+    // Beim Stapel-Scan wurde dieser Beleg vielleicht schon im Hintergrund gelesen
+    if(ui.pre&&ui.pre.file===file&&o.rot==null){const pre=ui.pre;ui.pre=null;ui.ocr.label='Lese Beleg …';render();
+      const out=await pre.promise;if(out.e)throw out.e;res=out.r;if(res.photoUrl){ui.photoUrl=res.photoUrl;delete res.photoUrl}}
+    else res=await readOne(file,true,o.rot||0,o.rot!=null);
     ui.ocr=null;ui.paste=res.text||'';ui.rot=res.rot||0;
     if(!ui.paste.trim()){ui.err=pdf?'In diesem PDF wurde kein Text gefunden.':'Auf dem Foto wurde kein Text gefunden. Fotografiere den Bon gerade, formatfüllend und gut beleuchtet, oder kopiere den Text mit Google Lens.';render();return}
     parseNow(applyCodes(res.p,res.codes));
+    if(ui.queue&&ui.queue.length)setTimeout(prefetchNext,400);
   }catch(e){ui.ocr=null;ui.err=ocrErr(e,pdf);render()}
+}
+// Stapel-Scan: den nächsten Beleg schon lesen, während der aktuelle geprüft wird
+function prefetchNext(){
+  if(!ui.queue||!ui.queue.length||ui.pre)return;
+  const f=ui.queue[0];
+  ui.pre={file:f,promise:readOne(f,'bg').then(r=>({r}),e=>({e}))};
+}
+// Vorgelesenen Beleg verwerfen (Stapel abgebrochen)
+function dropPrefetch(){
+  const pre=ui.pre;ui.pre=null;
+  if(pre)pre.promise.then(o=>{if(o.r&&o.r.photoUrl)URL.revokeObjectURL(o.r.photoUrl)});
 }
 // Mehrere Seiten (z. B. Screenshots einer langen Rechnung) zu einem Beleg zusammenfügen
 async function runPages(files){

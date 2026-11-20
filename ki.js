@@ -86,8 +86,10 @@ async function kiRecognize(src,W,H,boxes){
     x.drawImage(src,x0,y0,x1-x0,y1-y0,0,0,nw,48);crops.push({w:nw,d:x.getImageData(0,0,nw,48).data});
   }
   const order=crops.map((c,i)=>i).filter(i=>crops[i]).sort((a,b)=>crops[a].w-crops[b].w),res=new Array(crops.length).fill(null);
-  for(let s=0;s<order.length;s+=12){
-    const idx=order.slice(s,s+12),mw=Math.max(...idx.map(i=>crops[i].w)),plane=48*mw,inp=new Float32Array(idx.length*3*plane);
+  // Nur ähnlich lange Zeilen gemeinsam lesen: Auffüllen kurzer Zeilen kostet Zeit und kann das Ergebnis verfälschen
+  const groups=[];for(const i of order){const g=groups[groups.length-1];if(g&&g.length<12&&crops[i].w<=crops[g[0]].w*1.25)g.push(i);else groups.push([i])}
+  for(const idx of groups){
+    const mw=Math.max(...idx.map(i=>crops[i].w)),plane=48*mw,inp=new Float32Array(idx.length*3*plane);
     idx.forEach((i,j)=>{const c=crops[i],o=j*3*plane;
       for(let y=0;y<48;y++)for(let xx=0;xx<c.w;xx++){const p=(y*c.w+xx)*4,t=y*mw+xx;
         inp[o+t]=c.d[p]/127.5-1;inp[o+plane+t]=c.d[p+1]/127.5-1;inp[o+2*plane+t]=c.d[p+2]/127.5-1}});
@@ -96,7 +98,6 @@ async function kiRecognize(src,W,H,boxes){
       for(let k=0;k<T;k++){const o=(j*T+k)*C;let bi=0,bv=-1;for(let c=0;c<C;c++)if(a[o+c]>bv){bv=a[o+c];bi=c}
         if(bi&&bi!==prev){txt+=KI.ch[bi]||'';conf+=bv;nc++}prev=bi}
       res[i]={t:txt,c:nc?conf/nc:0}});
-    setProgress('Lese Text mit KI …',0.35+0.6*Math.min(1,(s+12)/order.length));
   }
   return res;
 }
@@ -123,15 +124,31 @@ async function kiUsable(){
   try{setProgress((await kiCached())?'Starte KI-Texterkennung …':'Lade KI-Texterkennung (einmalig, ca. 24 MB) …',0.05);await kiLoad();return true}catch(e){KI.failed=false;return false}
 }
 // Gesamter Ablauf für ein vorbereitetes Bild (gleiche Bildaufbereitung wie die bisherige Texterkennung)
-async function kiRead(variants){
+// Immer nur ein Bon gleichzeitig in der KI (Vorlesen im Hintergrund und Lesen im Vordergrund warten aufeinander)
+let kiBusy=Promise.resolve();
+function kiRead(variants){const run=kiBusy.then(()=>kiReadNow(variants));kiBusy=run.catch(()=>{});return run}
+async function kiReadNow(variants){
   await kiLoad();
   const src=variants.gray,W=src.width,H=src.height;
   setProgress('Suche Textzeilen …',0.15);await new Promise(r=>setTimeout(r,20));
   const boxes=await kiDetect(src,W,H);
   setProgress('Lese Text mit KI …',0.35);
-  const texts=await kiRecognize(src,W,H,boxes);
-  const o=kiLines(boxes,texts),p=parseReceipt(o.text,{low:o.low});
-  const res={text:o.text,p,sc:scoreParse(p)+0.5,engine:'ki'};
+  // Von oben nach unten in Häppchen lesen. Sobald Positionen und Summe aufgehen und das Datum gefunden ist,
+  // aufhören: Darunter stehen meist nur Kassen-Code, Signatur, Adresse und Grüße.
+  const order=boxes.map((b,i)=>i).sort((a,b)=>(boxes[a][1]+boxes[a][3])-(boxes[b][1]+boxes[b][3]));
+  const texts=new Array(boxes.length).fill(null),seen=[];let o=null,p=null,stopped=false;
+  for(let s=0;s<order.length;){
+    let e=Math.min(order.length,s+(s?16:24));
+    // Häppchen nicht mitten in einer Zeile enden lassen
+    while(e<order.length){const a=boxes[order[e-1]],b=boxes[order[e]];if(Math.abs((a[1]+a[3])-(b[1]+b[3]))/2<0.5*Math.min(a[3]-a[1],b[3]-b[1]))e++;else break}
+    const part=order.slice(s,e),r=await kiRecognize(src,W,H,part.map(i=>boxes[i]));
+    part.forEach((i,k)=>{texts[i]=r[k];seen.push(i)});s=e;
+    setProgress('Lese Text mit KI …',0.35+0.6*s/order.length);
+    o=kiLines(seen.map(i=>boxes[i]),seen.map(i=>texts[i]));p=parseReceipt(o.text,{low:o.low});
+    if(s<order.length&&verified(p)&&p.dateFound){stopped=true;break}
+  }
+  if(!o){o=kiLines([],[]);p=parseReceipt('',{low:o.low})}
+  const res={text:o.text,p,sc:scoreParse(p)+0.5,engine:'ki',kiRows:`${seen.length}/${boxes.length}${stopped?' (früher fertig)':''}`};
   if(variants.q)res.textH=o.h/(variants.q.scale||1);
   return res;
 }

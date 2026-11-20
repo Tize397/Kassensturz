@@ -1,6 +1,6 @@
 // Kassensturz Service Worker: App offline verfügbar machen, Updates zuverlässig laden, geteilte Bilder annehmen.
 // Bei jeder neuen Version hochzählen (zusammen mit version.json und APP_VERSION in daten.js).
-const VERSION = 'kassensturz-v2.11.0';
+const VERSION = 'kassensturz-v2.12.0';
 const RUNTIME = 'kassensturz-runtime';
 const SHARE = 'kassensturz-share';
 // KI-Modelle: eigener Speicher, der bei App-Updates erhalten bleibt (nur bei neuem Modell neuen Namen vergeben)

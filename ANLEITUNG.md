@@ -41,6 +41,11 @@ Am bequemsten geht das am Computer (ca. 10 Minuten).
 - Unter „Mehr → Backup & Export“ regelmäßig „Backup teilen“ und z. B. Google Drive wählen. Die App erinnert dich, wenn das letzte Backup älter als einen Monat ist.
 - Updates: Bei einer neuen Version alle Dateien aus dem ZIP bei GitHub erneut hochladen (vorhandene ersetzen). Eine alte Datei `icon-text-192.png` kannst du bei GitHub löschen, sie wird nicht mehr gebraucht. Die App zeigt danach „Neue Version verfügbar“, ein Tipp auf „Jetzt laden“ genügt. Deine Daten bleiben erhalten.
 
+## Neu in 2.12: Schnellere KI
+- **Früher fertig:** Die KI liest den Bon von oben nach unten und hört auf, sobald Summe, Positionen und Datum zusammenpassen. Kassenbons gehen dadurch etwa ein Drittel bis die Hälfte schneller. Rechnungen ohne Datum dauern so lange wie bisher.
+- **Mehrere Belege:** Während du einen Beleg prüfst, liest die App den nächsten schon im Hintergrund.
+- **Hochladen:** Nur die Programmdateien ersetzen. Den Ordner `ki` musst du nicht erneut hochladen.
+
 ## Neu in 2.11: KI-Texterkennung
 - Eine kleine KI (PaddleOCR) liest Bon-Fotos direkt auf dem Handy. Sie ist deutlich genauer als die bisherige Erkennung, besonders bei blassem Thermopapier.
 - **Datenschutz:** Die KI rechnet komplett im Handy. Fotos und Text werden nirgendwohin geschickt. Die Modelldateien liegen im Ordner `ki` deiner eigenen GitHub-Seite.
